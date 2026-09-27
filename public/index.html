@@ -1,0 +1,3124 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SMART FIT2WORK</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            primary: '#1A73E8',
+            canvas: '#F4F7FE',
+            surface: '#FFFFFF',
+            ink: '#1B2559',
+            muted: '#A3AED0',
+            success: '#05CD99',
+            danger: '#EE5D50',
+            line: '#E0E5F2',
+            iconbg: '#E9F3FF',
+            chartdark: '#344BFD',
+            chartlight: '#96BAFF',
+          },
+          fontFamily: {
+            sans: ['"Plus Jakarta Sans"', 'Inter', 'ui-sans-serif', 'system-ui', 'sans-serif'],
+          },
+          borderRadius: { sm: '10px', md: '14px', lg: '22px', xl: '16px', '2xl': '26px', '3xl': '34px' },
+          boxShadow: {
+            card: '0 1px 2px rgba(16,24,40,.04), 0 12px 32px -12px rgba(16,24,40,.10)',
+            soft: '0 1px 3px rgba(16,24,40,.06), 0 6px 16px -8px rgba(16,24,40,.08)',
+            lift: '0 2px 4px rgba(16,24,40,.04), 0 24px 56px -20px rgba(16,24,40,.22)',
+          },
+        },
+      },
+    };
+  </script>
+  <style>
+    html { font-family: 'Plus Jakarta Sans', Inter, sans-serif; }
+    body { background: #F4F7FE; color: #1B2559; -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; }
+    [v-cloak] { display: none; }
+    .min-touch { min-width: 44px; min-height: 44px; }
+    .page-enter { animation: fade .2s ease; }
+    @keyframes fade { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
+    .spinner { width: 18px; height: 18px; border: 2px solid #E0E5F2; border-top-color: #1A73E8; border-radius: 50%; animation: spin .7s linear infinite; display: inline-block; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    /* ---- Modern UI layer (2026) ---- */
+    h1, h2, h3, h4 { letter-spacing: -0.02em; }
+    button, input, select, textarea { font-family: inherit; }
+    ::selection { background: rgba(26, 115, 232, 0.18); }
+    button { transition: background-color .18s ease, border-color .18s ease, color .18s ease, box-shadow .18s ease, opacity .18s ease, transform .12s ease; }
+    button.bg-primary { box-shadow: 0 10px 24px -10px rgba(26, 115, 232, 0.55); }
+    button.bg-primary:hover:not(:disabled) { filter: brightness(1.06); }
+    button:active:not(:disabled) { transform: translateY(1px); }
+    input:focus-visible, select:focus-visible, textarea:focus-visible { box-shadow: 0 0 0 4px rgba(26, 115, 232, 0.12); }
+    main .shadow-card:not(.overflow-hidden) { transition: box-shadow .2s ease, transform .2s ease; }
+    main .shadow-card:not(.overflow-hidden):hover { transform: translateY(-2px); box-shadow: 0 2px 6px rgba(16,24,40,.05), 0 24px 56px -20px rgba(16,24,40,.18); }
+    ::-webkit-scrollbar { width: 10px; height: 10px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: #CBD5E1; border-radius: 999px; border: 2px solid #F4F7FE; }
+    ::-webkit-scrollbar-thumb:hover { background: #A3AED0; }
+  </style>
+  <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
+</head>
+<body>
+  <div id="app" v-cloak></div>
+
+  <script>
+    const { createApp, ref, reactive, computed, onMounted, onUnmounted, watch } = Vue;
+
+    /* ========== MOCK SYSTEM ========== */
+    const USE_MOCK = false;
+    window.GAS_ENDPOINT = window.GAS_ENDPOINT || 'https://script.google.com/macros/s/AKfycbxAyBHs6gOI04ZZq38YdDbYn6J1VxD2yIXVr9byxn08695zdr54UubioPyXrob1FCHP/exec';
+    window.GAS_API_KEY = window.GAS_API_KEY || 'DEV_KEY';
+
+    const MOCK = {
+      pin: '1234',
+      user: { name: 'Ns. Ayu Lestari', role: 'Perawat', email: 'ayu.lestari@tpknm.id', initials: 'AL' },
+      dutyOfficers: [
+        { id: 'DOC-01', name: 'dr. Pratama Wijaya, Sp.OK', role: 'Dokter', initials: 'PW' },
+        { id: 'DOC-02', name: 'dr. Ratna Kusuma, Sp.PD', role: 'Dokter', initials: 'RK' },
+        { id: 'NUR-01', name: 'Ns. Ayu Lestari, S.Kep', role: 'Perawat', initials: 'AL' },
+        { id: 'NUR-02', name: 'Ns. Budi Hartono, S.Kep', role: 'Perawat', initials: 'BH' },
+        { id: 'NUR-03', name: 'Ns. Siti Rahma, S.Kep', role: 'Perawat', initials: 'SR' },
+      ],
+      employees: [
+        { id: 'K-1001', name: 'Budi Santoso', unit: 'HSSE', shift: 'Pagi', age: 34, heightCm: 172 },
+        { id: 'K-1002', name: 'Siti Rahma', unit: 'Produksi', shift: 'Pagi', age: 28, heightCm: 160 },
+        { id: 'K-1003', name: 'Andi Wijaya', unit: 'Maintenance', shift: 'Siang', age: 41, heightCm: 168 },
+        { id: 'K-1004', name: 'Dewi Anggraini', unit: 'Logistik', shift: 'Pagi', age: 31, heightCm: 158 },
+        { id: 'K-1005', name: 'Rudi Hartono', unit: 'Produksi', shift: 'Malam', age: 45, heightCm: 175 },
+        { id: 'K-1006', name: 'Lestari Putri', unit: 'HRD', shift: 'Pagi', age: 26, heightCm: 162 },
+        { id: 'K-1007', name: 'Hendra Gunawan', unit: 'Maintenance', shift: 'Siang', age: 38, heightCm: 170 },
+        { id: 'K-1008', name: 'Maya Sari', unit: 'Logistik', shift: 'Pagi', age: 29, heightCm: 155 },
+      ],
+      records: [
+        { id: 'TRX-20260924-001', timestamp: '2026-09-24T06:12:00', employeeId: 'K-1001', employeeName: 'Budi Santoso', systolic: 128, diastolic: 82, temperature: 36.6, spo2: 98, heartRate: 74, weightKg: 74, heightCm: 172, bmi: 25.0, status: 'FIT', source: 'Bluetooth', reason: '' },
+        { id: 'TRX-20260924-002', timestamp: '2026-09-24T06:18:00', employeeId: 'K-1002', employeeName: 'Siti Rahma', systolic: 118, diastolic: 76, temperature: 36.4, spo2: 99, heartRate: 68, weightKg: 54, heightCm: 160, bmi: 21.1, status: 'FIT', source: 'Bluetooth', reason: '' },
+        { id: 'TRX-20260924-003', timestamp: '2026-09-24T06:25:00', employeeId: 'K-1005', employeeName: 'Rudi Hartono', systolic: 148, diastolic: 94, temperature: 37.1, spo2: 96, heartRate: 82, weightKg: 88, heightCm: 175, bmi: 28.7, status: 'UNFIT', source: 'Manual', reason: 'Baterai tensimeter habis' },
+        { id: 'TRX-20260924-004', timestamp: '2026-09-24T06:31:00', employeeId: 'K-1003', employeeName: 'Andi Wijaya', systolic: 132, diastolic: 85, temperature: 36.8, spo2: 97, heartRate: 76, weightKg: 70, heightCm: 168, bmi: 24.8, status: 'FIT', source: 'Bluetooth', reason: '' },
+        { id: 'TRX-20260924-005', timestamp: '2026-09-24T06:40:00', employeeId: 'K-1004', employeeName: 'Dewi Anggraini', systolic: 122, diastolic: 78, temperature: 37.8, spo2: 98, heartRate: 72, weightKg: 58, heightCm: 158, bmi: 23.3, status: 'UNFIT', source: 'Bluetooth', reason: '' },
+        { id: 'TRX-20260924-006', timestamp: '2026-09-24T06:48:00', employeeId: 'K-1006', employeeName: 'Lestari Putri', systolic: 110, diastolic: 70, temperature: 36.5, spo2: 99, heartRate: 66, weightKg: 50, heightCm: 162, bmi: 19.1, status: 'FIT', source: 'Bluetooth', reason: '' },
+        { id: 'TRX-20260924-007', timestamp: '2026-09-24T06:55:00', employeeId: 'K-1007', employeeName: 'Hendra Gunawan', systolic: 136, diastolic: 88, temperature: 36.9, spo2: 97, heartRate: 78, weightKg: 76, heightCm: 170, bmi: 26.3, status: 'FIT', source: 'Bluetooth', reason: '' },
+        { id: 'TRX-20260924-008', timestamp: '2026-09-24T07:02:00', employeeId: 'K-1008', employeeName: 'Maya Sari', systolic: 124, diastolic: 80, temperature: 36.7, spo2: 98, heartRate: 70, weightKg: 52, heightCm: 155, bmi: 21.7, status: 'FIT', source: 'Bluetooth', reason: '' },
+        { id: 'TRX-20260923-010', timestamp: '2026-09-23T06:15:00', employeeId: 'K-1001', employeeName: 'Budi Santoso', systolic: 130, diastolic: 84, temperature: 36.5, spo2: 98, heartRate: 72, weightKg: 74, heightCm: 172, bmi: 25.0, status: 'FIT', source: 'Bluetooth', reason: '' },
+        { id: 'TRX-20260923-011', timestamp: '2026-09-23T06:22:00', employeeId: 'K-1005', employeeName: 'Rudi Hartono', systolic: 145, diastolic: 92, temperature: 36.9, spo2: 95, heartRate: 80, weightKg: 88, heightCm: 175, bmi: 28.7, status: 'UNFIT', source: 'Bluetooth', reason: '' },
+        { id: 'TRX-20260923-012', timestamp: '2026-09-23T06:30:00', employeeId: 'K-1002', employeeName: 'Siti Rahma', systolic: 116, diastolic: 74, temperature: 36.3, spo2: 99, heartRate: 65, weightKg: 54, heightCm: 160, bmi: 21.1, status: 'FIT', source: 'Bluetooth', reason: '' },
+      ],
+      weekly: [
+        { label: 'Sen', fit: 42, unfit: 5 },
+        { label: 'Sel', fit: 45, unfit: 3 },
+        { label: 'Rab', fit: 40, unfit: 7 },
+        { label: 'Kam', fit: 44, unfit: 4 },
+        { label: 'Jum', fit: 46, unfit: 2 },
+        { label: 'Sab', fit: 30, unfit: 2 },
+        { label: 'Min', fit: 12, unfit: 1 },
+      ],
+    };
+
+    /* ========== API HELPER (GAS) ========== */
+    async function apiPost(action, data) {
+      if (USE_MOCK) {
+        await new Promise((r) => setTimeout(r, 350));
+        if (action === 'login') {
+          if (data.pin === MOCK.pin) return { ok: true, user: MOCK.user };
+          return { ok: false, message: 'PIN salah' };
+        }
+        if (action === 'saveRecord') {
+          const key = String(data.employeeId || '') + '|' + String(data.timestamp || '');
+          MOCK._savedKeys = MOCK._savedKeys || {};
+          if (MOCK._savedKeys[key]) {
+            return Object.assign({ ok: true, duplicate: true }, MOCK._savedKeys[key]);
+          }
+          const id = 'TRX-' + Date.now();
+          MOCK._savedKeys[key] = { id: id, status: calcStatus(Number(data.systolic), Number(data.temperature)) };
+          return { ok: true, id: id, status: MOCK._savedKeys[key].status };
+        }
+        if (action === 'listRecords') {
+          return { ok: true, records: MOCK.records.slice(0, 50) };
+        }
+        if (action === 'listEmployees') {
+          return { ok: true, employees: MOCK.employees };
+        }
+        if (action === 'addEmployee') {
+          let maxNum = 1000;
+          MOCK.employees.forEach((e) => {
+            const m = /^K-(\d+)$/.exec(e.id);
+            if (m && Number(m[1]) > maxNum) maxNum = Number(m[1]);
+          });
+          const now = new Date();
+          const p = String(data.dob || '').split('-').map(Number);
+          let age = now.getFullYear() - p[0];
+          if (now.getMonth() + 1 < p[1] || (now.getMonth() + 1 === p[1] && now.getDate() < p[2])) age--;
+          const emp = {
+            id: 'K-' + String(maxNum + 1).padStart(4, '0'),
+            name: String(data.name || '').trim(),
+            unit: String(data.unit || '').trim(),
+            shift: '',
+            age: age,
+            heightCm: Number(data.heightCm),
+            dob: data.dob,
+          };
+          MOCK.employees.push(emp);
+          return { ok: true, employee: emp };
+        }
+        if (action === 'stats') {
+          const records = MOCK.records.filter((r) => r.timestamp.startsWith('2026-09-24'));
+          return {
+            ok: true,
+            totalToday: records.length,
+            fitToday: records.filter((r) => r.status === 'FIT').length,
+            unfitToday: records.filter((r) => r.status === 'UNFIT').length,
+            avgMinutes: 82,
+            weekly: MOCK.weekly,
+          };
+        }
+        if (action === 'listDutyOfficers') {
+          const overrides = MOCK._dutyOverrides || {};
+          const officers = MOCK.dutyOfficers.map((o) => {
+            const ov = overrides[o.id] || {};
+            return Object.assign({}, o, { name: ov.name || o.name, role: ov.role || o.role });
+          });
+          return { ok: true, officers: officers };
+        }
+        if (action === 'saveDutyOfficer') {
+          MOCK._dutyOverrides = MOCK._dutyOverrides || {};
+          let newName = String(data.name || '').trim();
+          let newRole = String(data.role || '').trim();
+          const orig = MOCK.dutyOfficers.find((x) => x.id === data.id);
+          if (!orig) return { ok: false, message: 'Petugas tidak ditemukan' };
+          if (!newName) newName = orig.name;
+          if (!newRole) newRole = orig.role;
+          MOCK._dutyOverrides[data.id] = { name: newName, role: newRole };
+          return { ok: true, officer: Object.assign({}, orig, { name: newName, role: newRole }) };
+        }
+        return { ok: true };
+      }
+
+      const endpoint = window.GAS_ENDPOINT || '';
+      try {
+        const res = await fetch(endpoint, {
+          method: 'POST',
+          redirect: 'follow',
+          headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+          body: JSON.stringify({ action, data, apiKey: window.GAS_API_KEY || '' }),
+        });
+        return await res.json();
+      } catch (e) {
+        return { ok: false, message: 'Koneksi ke server gagal — periksa internet lalu coba lagi.' };
+      }
+    }
+
+    function readDuty() {
+      try {
+        const id = sessionStorage.getItem('sf2w_duty');
+        if (!id) return null;
+        const o = MOCK.dutyOfficers.find((x) => x.id === id);
+        if (!o) return null;
+        let overrides = {};
+        try {
+          overrides = JSON.parse(sessionStorage.getItem('sf2w_duty_overrides') || '{}') || {};
+        } catch(e) {
+          try {
+            const names = JSON.parse(sessionStorage.getItem('sf2w_duty_names') || '{}') || {};
+            if (names[o.id]) overrides[o.id] = { name: names[o.id] };
+          } catch(ee) {}
+        }
+        const ov = overrides[o.id];
+        return ov ? Object.assign({}, o, { name: ov.name || o.name, role: ov.role || o.role }) : o;
+      } catch (e) {
+        return null;
+      }
+    }
+
+    /* ========== DOMAIN HELPERS ========== */
+    function calcBmi(weightKg, heightCm) {
+      if (!weightKg || !heightCm) return null;
+      const m = heightCm / 100;
+      return Math.round((weightKg / (m * m)) * 10) / 10;
+    }
+
+    function calcStatus(systolic, temperature) {
+      if (systolic == null || temperature == null) return null;
+      return systolic < 140 && temperature < 37.5 ? 'FIT' : 'UNFIT';
+    }
+
+    function fmtTime(iso) {
+      const d = new Date(iso);
+      if (isNaN(d)) return '-';
+      return d.toLocaleString('id-ID', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+    }
+
+    function fmtDate(iso) {
+      const d = new Date(iso);
+      if (isNaN(d)) return '-';
+      return d.toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' });
+    }
+
+    function toCSV(rows) {
+      if (!rows.length) return '';
+      const headers = ['ID', 'Timestamp', 'ID Karyawan', 'Nama', 'Sistolik', 'Diastolik', 'Suhu', 'SPO2', 'HR', 'Berat', 'Tinggi', 'BMI', 'Status', 'Sumber', 'Alasan'];
+      const lines = [headers.join(',')];
+      rows.forEach((r) => {
+        lines.push([
+          r.id, r.timestamp, r.employeeId, `"${r.employeeName}"`,
+          r.systolic, r.diastolic, r.temperature, r.spo2, r.heartRate,
+          r.weightKg, r.heightCm, r.bmi, r.status, r.source, `"${r.reason || ''}"`,
+        ].join(','));
+      });
+      return lines.join('\n');
+    }
+
+    /* ========== BLUETOOTH SKELETON ========== */
+    const DEVICE_PROFILES = {
+      tensi: { name: 'Tensi Meter', service: 0x1810, chars: [0x2A35] },
+      thermo: { name: 'Termometer', service: 0x1809, chars: [0x2A1C, 0x2A1E] },
+      spo2: { name: 'SPO2', service: 0x1822, chars: [0x2A5E, 0x2A5F] },
+      scale: { name: 'Timbangan', service: 0x181D, chars: [0x2A9D], feature: 0x2A9E },
+    };
+
+    const BT_MEASURE_TIMEOUT = 120000;
+    const BT_POLL_INTERVAL = 2000;
+    const BT_READ_TIMEOUT = 4000;
+    const BT_SPO2_STABLE_READS = 2;
+    const BT_FRAME_MAX_AGE = 90000;
+    const BT_OLD_RECORD_MS = 30 * 60 * 1000;
+    const WSS_RES_KG = [0.5, 0.2, 0.1, 0.05, 0.02, 0.01, 0.005];
+    const WSS_RES_LB = [1, 0.5, 0.2, 0.1, 0.05, 0.02, 0.01];
+
+    const BT = {};
+    const BTPaired = {};
+    const btReconn = {};
+    let btCancelled = false;
+    let btLog = [];
+
+    function loadBtLog() {
+      try {
+        if (typeof sessionStorage !== 'undefined') {
+          const data = JSON.parse(sessionStorage.getItem('sf2w_bt_log') || '[]');
+          if (Array.isArray(data)) {
+            return data.map((e) => ({
+              t: e.t, who: e.who || e.device || '-',
+              act: e.act || e.event || '-', msg: e.msg || e.detail || '',
+            }));
+          }
+        }
+      } catch (e) {}
+      return [];
+    }
+
+    function saveBtLog() {
+      try {
+        if (typeof sessionStorage !== 'undefined') {
+          sessionStorage.setItem('sf2w_bt_log', JSON.stringify(btLog.slice(0, 30)));
+        }
+      } catch (e) {}
+    }
+
+    function btLogPush(device, event, detail) {
+      btLog.unshift({ t: new Date().toISOString(), who: device || '-', act: event || '-', msg: detail || '' });
+      if (btLog.length > 60) btLog.length = 60;
+      saveBtLog();
+      try { window.dispatchEvent(new CustomEvent('sf2w:bt-log', { detail: btLog.slice() })); } catch (e) {}
+    }
+
+    function getBtLog() {
+      if (!btLog.length) btLog = loadBtLog();
+      return btLog.slice();
+    }
+
+    function hexDump(dv, max) {
+      if (!dv || !dv.byteLength) return '-';
+      const n = Math.min(dv.byteLength, max || 32);
+      const out = [];
+      for (let i = 0; i < n; i++) out.push(dv.getUint8(i).toString(16).padStart(2, '0'));
+      return out.join(' ') + (dv.byteLength > n ? ' …' : '');
+    }
+
+    function propsText(props) {
+      if (!props) return '-';
+      return ['read', 'notify', 'indicate', 'write', 'writeWithoutResponse']
+        .filter((p) => props[p]).join(',') || '-';
+    }
+
+    function btClearMeasure() {
+      btCancelled = true;
+    }
+
+    function btDetach(key) {
+      const h = BT[key];
+      if (!h) return;
+      h.onFrame = null;
+      if (h.characteristic && h.listener) {
+        try { h.characteristic.removeEventListener('characteristicvaluechanged', h.listener); } catch (e) {}
+        h.listener = null;
+        try { h.characteristic.stopNotifications(); } catch (e) {}
+      }
+    }
+
+    function btDisconnect(key) {
+      btStopReconnect(key);
+      const h = BT[key];
+      if (!h) return;
+      btDetach(key);
+      delete BT[key];
+      if (h.device && h.device.gatt && h.device.gatt.connected) {
+        try { h.device.gatt.disconnect(); } catch (e) {}
+      }
+    }
+
+    function btUnpair(key) {
+      btStopReconnect(key);
+      delete BTPaired[key];
+      try {
+        if (typeof sessionStorage !== 'undefined') sessionStorage.removeItem('sf2w_pair_' + key);
+      } catch (e) {}
+    }
+
+    async function btRestorePair(key) {
+      try {
+        if (typeof sessionStorage === 'undefined') return null;
+        if (!navigator.bluetooth || typeof navigator.bluetooth.getDevices !== 'function') return null;
+        const id = sessionStorage.getItem('sf2w_pair_' + key);
+        if (!id) return null;
+        const list = await navigator.bluetooth.getDevices();
+        const dev = (list || []).find((d) => d && d.id === id);
+        if (dev) {
+          BTPaired[key] = dev;
+          btLogPush(DEVICE_PROFILES[key].name, 'pasangan', 'perangkat terpasang terdeteksi: ' + (dev.name || id));
+          return dev;
+        }
+      } catch (e) {}
+      return null;
+    }
+
+    function btStopReconnect(key) {
+      const st = btReconn[key];
+      if (!st) return;
+      if (st.timer) clearTimeout(st.timer);
+      delete btReconn[key];
+    }
+
+    function btStartReconnect(key) {
+      if (btReconn[key] || !BTPaired[key]) return;
+      const profile = DEVICE_PROFILES[key];
+      const st = { n: 0 };
+      btReconn[key] = st;
+      btLogPush(profile.name, 'reconnect', 'auto-reconnect aktif — menunggu perangkat aktif tanpa tombol Connect.');
+      const tick = async () => {
+        st.timer = null;
+        if (btReconn[key] !== st) return;
+        if (BT[key] && BT[key].characteristic && !BT[key].simulated) { delete btReconn[key]; return; }
+        if (!BTPaired[key]) { delete btReconn[key]; return; }
+        st.n++;
+        try {
+          const res = await bluetoothConnect(key, { silent: true });
+          if (res.ok && !res.simulated) {
+            delete btReconn[key];
+            btLogPush(profile.name, 'reconnect', 'TERHUBUNG otomatis: ' + res.device);
+            window.dispatchEvent(new CustomEvent('sf2w:bt-connected', { detail: { key: key, name: res.device } }));
+            return;
+          }
+          if (res.fatal) {
+            delete btReconn[key];
+            btLogPush(profile.name, 'reconnect', 'gagal permanen: ' + res.message);
+            window.dispatchEvent(new CustomEvent('sf2w:bt-reconn-failed', { detail: { key: key, message: res.message } }));
+            return;
+          }
+          if (st.n === 1 || st.n % 5 === 0) {
+            btLogPush(profile.name, 'reconnect', 'coba #' + st.n + ' — perangkat belum aktif (' + res.message + ')');
+          }
+        } catch (e) {
+          if (st.n === 1 || st.n % 5 === 0) {
+            btLogPush(profile.name, 'reconnect', 'coba #' + st.n + ' gagal: ' + ((e && e.message) || '-'));
+          }
+        }
+        // Retry cepat (1,5 dtk): jendela hasil timbangan hanya ±3 dtk setelah bangun/auto-off —
+        // interval 4 dtk melewatkannya. Log sudah di-throttle (awal + tiap ke-5), jadi tidak membanjiri.
+        if (btReconn[key] === st) st.timer = setTimeout(tick, 1500);
+      };
+      tick();
+    }
+
+    async function bluetoothConnect(key, opts) {
+      const profile = DEVICE_PROFILES[key];
+      if (!navigator.bluetooth) {
+        btLogPush(profile.name, 'koneksi', 'Web Bluetooth tidak tersedia → mode SIMULASI.');
+        return {
+          ok: true,
+          simulated: true,
+          device: profile.name + ' (Simulasi)',
+          message: 'Web Bluetooth tidak tersedia — koneksi simulasi aktif.',
+        };
+      }
+      let device = BTPaired[key] || null;
+      const fromPair = !!device;
+      const extraServices = [
+        0x1808, 0x1809, 0x180A, 0x180D, 0x180F, 0x1810, 0x181D, 0x1822,
+        0xFFE0, 0xFF00, 0xFFF0, 0xFE00,
+        '49535343-fe7d-4ae5-8fa9-9fafd205e455',
+        '6e400001-b5a3-f393-e0a9-e50e24dcca9e',
+      ];
+      if (fromPair) {
+        btLogPush(profile.name, 'koneksi', 'pakai pasangan tersimpan (tanpa chooser): ' + (device.name || device.id || '-'));
+      } else {
+        try {
+          device = await navigator.bluetooth.requestDevice({
+            acceptAllDevices: true,
+            optionalServices: [profile.service].concat(extraServices.filter((u) => u !== profile.service)),
+          });
+        } catch (err) {
+          if (err && err.name === 'NotFoundError') {
+            btLogPush(profile.name, 'koneksi', 'Pemilihan perangkat dibatalkan.');
+            return { ok: false, cancelled: true, message: 'Pemilihan dibatalkan' };
+          }
+          btLogPush(profile.name, 'koneksi', 'GAGAL: ' + ((err && err.message) || 'unknown'));
+          return { ok: false, message: (err && err.message) || 'Gagal terhubung' };
+        }
+        BTPaired[key] = device;
+        try {
+          if (device.id && typeof sessionStorage !== 'undefined') sessionStorage.setItem('sf2w_pair_' + key, device.id);
+        } catch (e) {}
+      }
+
+      const newHandle = (extra) => Object.assign({
+        device: device, characteristic: null, simulated: false,
+        deviceName: device.name || profile.name,
+        serviceUuid: '-', charUuid: '-', props: '-',
+        wssIdx: 2, buffer: [], listener: null, onFrame: null,
+      }, extra || {});
+
+      const shortUuid = (u) => String(u).toLowerCase().replace(/-0000-1000-8000-00805f9b34fb$/, '');
+      const fmtUuid = (u) => {
+        if (typeof u === 'number') return '0x' + u.toString(16).toUpperCase();
+        const s = String(u);
+        if (/^[0-9a-f]{4}$/i.test(s)) return '0x' + s.toUpperCase();
+        if (/^0{4}[0-9a-f]{4}$/i.test(s)) return '0x' + s.slice(4).toUpperCase();
+        return s;
+      };
+
+      async function discoverServices() {
+        try {
+          const list = await device.gatt.getPrimaryServices();
+          return list.map((s) => ({ uuid: String(s.uuid), service: s }));
+        } catch (e) {
+          return null;
+        }
+      }
+
+      const isSigUuid = (u) => {
+        let hex = String(u);
+        if (/^[0-9a-f]{8}$/.test(hex)) {
+          if (hex.slice(0, 4) !== '0000') return false;
+          hex = hex.slice(4);
+        }
+        if (!/^[0-9a-f]{4}$/.test(hex)) return false;
+        const v = parseInt(hex, 16);
+        return (v >= 0x1800 && v <= 0x18ff) || (v >= 0x2a00 && v <= 0x2aff);
+      };
+
+      async function sniffChar(services) {
+        if (!services) return null;
+        const cands = [];
+        for (const s of services) {
+          try {
+            const chars = await s.service.getCharacteristics();
+            for (const c of chars) {
+              const p = c.properties || {};
+              if (!(p.notify || p.indicate)) continue;
+              const u = shortUuid(c.uuid);
+              if (isSigUuid(u)) continue;
+              cands.push({
+                service: s.service, serviceUuid: shortUuid(s.uuid), char: c, uuid: u,
+                score: (p.notify ? 2 : 0) + (p.indicate ? 1 : 0) - (p.write || p.writeWithoutResponse ? 1 : 0),
+              });
+            }
+          } catch (e) {}
+        }
+        if (!cands.length) return null;
+        cands.sort((a, b) => b.score - a.score);
+        cands[0].alt = cands.slice(1).map((x) => x.uuid);
+        return cands[0];
+      }
+
+      async function inventoryText(services) {
+        if (!services) return 'discovery dibat browser';
+        if (!services.length) return '(tidak ada service yang boleh diakses Chrome)';
+        const out = [];
+        for (const s of services) {
+          try {
+            const chars = await s.service.getCharacteristics();
+            out.push(shortUuid(s.uuid) + '[' + chars.map((c) => shortUuid(c.uuid) + ':' + propsText(c.properties)).join(' ') + ']');
+          } catch (e) {
+            out.push(shortUuid(s.uuid) + '[akses ditolak]');
+          }
+        }
+        return out.join(' ') || '(kosong)';
+      }
+
+      try {
+        const server = await device.gatt.connect();
+        const found = { service: null, characteristic: null, charUuid: null, serviceUuid: null, missing: [] };
+
+        async function tryService(svc, svcUuid) {
+          for (const uuid of profile.chars) {
+            try {
+              const c = await svc.getCharacteristic(uuid);
+              found.service = svc;
+              found.characteristic = c;
+              found.charUuid = uuid;
+              found.serviceUuid = svcUuid;
+              return true;
+            } catch (e) {
+              found.missing.push('0x' + uuid.toString(16).toUpperCase());
+            }
+          }
+          return false;
+        }
+
+        let primary = null;
+        try { primary = await server.getPrimaryService(profile.service); } catch (e) {}
+        let okFound = false;
+        if (primary) okFound = await tryService(primary, '0x' + profile.service.toString(16).toUpperCase());
+
+        let services = null;
+        if (!okFound) {
+          services = await discoverServices();
+          if (services) {
+            for (const s of services) {
+              if (await tryService(s.service, shortUuid(s.uuid))) { okFound = true; break; }
+            }
+          }
+        }
+
+        if (!okFound) {
+          const list = services ? services.map((s) => shortUuid(s.uuid)).join(' ') : 'discovery dibat browser';
+          const tried = Array.from(new Set(found.missing)).join(', ');
+          if (key === 'thermo' && services && services.some((s) => shortUuid(s.uuid) === '00001810')) {
+            throw new Error('Alat ini monitor tekanan darah (Blood Pressure), bukan termometer — pilih perangkat termometer. Services: ' + list);
+          }
+          const sniff = await sniffChar(services);
+          if (sniff) {
+            found.service = sniff.service;
+            found.characteristic = sniff.char;
+            found.charUuid = sniff.uuid;
+            found.serviceUuid = sniff.serviceUuid;
+            okFound = true;
+            btLogPush(device.name || profile.name, 'koneksi',
+              'char profil tidak ada → sniff kustom ' + sniff.uuid + ' @ ' + sniff.serviceUuid +
+              (sniff.alt && sniff.alt.length ? ' (kandidat lain: ' + sniff.alt.join(' ') + ')' : ''));
+          } else {
+            const inv = await inventoryText(services);
+            throw new Error('Karakteristik tidak ditemukan di service mana pun (dicoba: ' + tried +
+              ') — Services: ' + (list || '(kosong — hanya service di optionalServices yang boleh dilihat Chrome)') +
+              ' — Inventory: ' + inv);
+          }
+        }
+
+        const handle = newHandle({
+          characteristic: found.characteristic,
+          serviceUuid: found.serviceUuid,
+          charUuid: fmtUuid(found.charUuid),
+          props: propsText(found.characteristic.properties),
+        });
+        BT[key] = handle;
+
+        if (profile.feature) {
+          try {
+            const f = await found.service.getCharacteristic(profile.feature);
+            const feature = (await f.readValue()).getUint16(0, true);
+            const idx = (feature & 0x38) >> 3;
+            handle.wssIdx = idx > 0 ? idx - 1 : 2;
+          } catch (e) {
+            handle.wssIdx = 2;
+          }
+        }
+
+        if (!services) services = await discoverServices();
+        const svcList = services ? services.map((s) => shortUuid(s.uuid)).join(' ') : 'discovery dibat browser';
+
+        if (!device._sf2wDisc) {
+          device._sf2wDisc = () => {
+            const h = BT[key];
+            if (h && !h.simulated) {
+              delete BT[key];
+              window.dispatchEvent(new CustomEvent('sf2w:bt-disconnected', { detail: { key: key, label: profile.name } }));
+            }
+            if (key === 'scale' && BTPaired[key]) btStartReconnect(key);
+          };
+          device.addEventListener('gattserverdisconnected', device._sf2wDisc);
+        }
+
+        btLogPush(handle.deviceName, 'koneksi',
+          'GATT OK · service ' + handle.serviceUuid + ' · char ' + handle.charUuid +
+          ' · props ' + handle.props + ' · services: ' + svcList);
+
+        btAttach(key);
+        return { ok: true, simulated: false, device: handle.deviceName };
+      } catch (err) {
+        const msg = (err && err.message) || 'GATT/karakteristik tidak tersedia';
+        if (opts && opts.silent) {
+          const gattUp = !!(device && device.gatt && device.gatt.connected);
+          if (gattUp) { try { device.gatt.disconnect(); } catch (e) {} }
+          btLogPush(device && device.name ? device.name : profile.name, 'reconnect',
+            'belum bisa: ' + msg + (gattUp ? ' (GATT naik tetapi karakteristik gagal)' : ''));
+          return { ok: false, silent: true, fatal: gattUp, message: msg };
+        }
+        if (fromPair) {
+          const gattUp = !!(device && device.gatt && device.gatt.connected);
+          if (gattUp) {
+            try { device.gatt.disconnect(); } catch (e) {}
+            btUnpair(key);
+            btLogPush(device && device.name ? device.name : profile.name, 'koneksi',
+              'pasangan tidak cocok → dihapus, pilih ulang perangkat: ' + msg);
+            return { ok: false, rechoose: true, message: 'Perangkat terpasang tidak cocok (' + msg + ') — klik Connect dan pilih ulang perangkat.' };
+          }
+          btStartReconnect(key);
+          return { ok: false, reconnecting: true, message: 'Perangkat belum aktif — nyalakan alat, atau tunggu auto-reconnect.' };
+        }
+        const handle = newHandle({ simulated: true });
+        BT[key] = handle;
+        btLogPush(handle.deviceName, 'koneksi', 'GAGAL → SIMULASI · ' + msg);
+        return { ok: true, simulated: true, device: handle.deviceName + ' (Simulasi)', message: msg };
+      }
+    }
+
+    /* --- Parser GATT per perangkat (spesifikasi Bluetooth SIG) --- */
+    function readSFloat(dv, o) {
+      const raw = dv.getUint16(o, true);
+      let mant = raw & 0x0FFF;
+      if (mant & 0x0800) mant -= 0x1000;
+      let exp = (raw >> 12) & 0x0F;
+      if (exp & 0x08) exp -= 0x10;
+      return mant * Math.pow(10, exp);
+    }
+
+    function parseDateTime(dv, o) {
+      const year = dv.getUint16(o, true);
+      const month = dv.getUint8(o + 2);
+      const day = dv.getUint8(o + 3);
+      if (!year || year < 2000 || !month || month > 12 || !day || day > 31) return null;
+      return new Date(year, month - 1, day, dv.getUint8(o + 4), dv.getUint8(o + 5), dv.getUint8(o + 6));
+    }
+
+    function plausible(key, v) {
+      if (!v) return false;
+      if (key === 'tensi') {
+        return v.systolic >= 60 && v.systolic <= 260 &&
+          v.diastolic >= 30 && v.diastolic <= 160 &&
+          v.diastolic < v.systolic;
+      }
+      if (key === 'thermo') return v.temperature >= 20 && v.temperature <= 50;
+      if (key === 'spo2') return v.spo2 >= 50 && v.spo2 <= 100;
+      if (key === 'scale') return v.weightKg >= 20 && v.weightKg <= 300;
+      return true;
+    }
+
+    function parseBloodPressure(dv) {
+      const flags = dv.getUint8(0);
+      let off = 1;
+      let sys, dia;
+      if (flags & 0x01) {
+        sys = readSFloat(dv, off); off += 2;
+        dia = readSFloat(dv, off); off += 2;
+        off += 2;
+        const toMmHg = (v) => {
+          let kpa = v;
+          if (kpa > 60) kpa = kpa / 10;
+          return Math.round(kpa * 7.50062);
+        };
+        sys = toMmHg(sys);
+        dia = toMmHg(dia);
+      } else {
+        sys = Math.round(readSFloat(dv, off)); off += 2;
+        dia = Math.round(readSFloat(dv, off)); off += 2;
+        off += 2;
+      }
+      let recordedAt = null;
+      if (flags & 0x02) { recordedAt = parseDateTime(dv, off); off += 7; }
+      let hr = null;
+      if (flags & 0x04) { hr = Math.round(readSFloat(dv, off)); off += 2; }
+      if (flags & 0x08) off += 1;
+      if (flags & 0x10) off += 2;
+      if (!(hr >= 20 && hr <= 220)) hr = null;
+      return { systolic: sys, diastolic: dia, heartRate: hr, recordedAt: recordedAt, flags: flags };
+    }
+
+    function parseTemperature(dv) {
+      const flags = dv.getUint8(0);
+      const round1 = (v) => Math.round(v * 10) / 10;
+      const cands = [];
+      const fRaw = dv.byteLength >= 5 ? dv.getFloat32(1, true) : NaN;
+      if (flags & 0x01) cands.push({ f: 'F→C', v: (fRaw - 32) * 5 / 9 });
+      cands.push({ f: 'float32', v: fRaw });
+      if (dv.byteLength >= 3) {
+        cands.push({ f: 'sfloat', v: readSFloat(dv, 1) });
+        const i16 = dv.getInt16(1, true);
+        cands.push({ f: 'i16/10', v: i16 / 10 });
+        cands.push({ f: 'i16/100', v: i16 / 100 });
+      }
+      let chosen = null;
+      for (let i = 0; i < cands.length; i++) {
+        if (Number.isFinite(cands[i].v) && cands[i].v >= 20 && cands[i].v <= 50) { chosen = cands[i]; break; }
+      }
+      if (!chosen) chosen = { f: 'float32', v: fRaw };
+      let recordedAt = null;
+      if (flags & 0x02) recordedAt = parseDateTime(dv, 5);
+      const out = { temperature: round1(chosen.v), format: chosen.f, recordedAt: recordedAt, flags: flags };
+      if (chosen.f !== 'float32') {
+        out.cands = cands.map((c) => c.f + '=' + (Number.isFinite(c.v) ? round1(c.v) : '-')).join(' ');
+      }
+      return out;
+    }
+
+    function parsePulseOx(dv) {
+      const flags = dv.getUint8(0);
+      const alt = [];
+      let spo2 = null;
+      if (dv.byteLength >= 3) {
+        const sf = Math.round(readSFloat(dv, 1));
+        if (sf >= 50 && sf <= 100) spo2 = sf; else alt.push('sfloat=' + sf);
+      } else if (dv.byteLength === 2) {
+        const b = dv.getUint8(1);
+        if (b >= 50 && b <= 100) spo2 = b;
+        alt.push('u8@1=' + b);
+      }
+      let heartRate = null;
+      if (dv.byteLength >= 5) {
+        try { heartRate = Math.round(readSFloat(dv, 3)); } catch (e) { heartRate = null; }
+      }
+      if (dv.byteLength >= 4) alt.push('u8@3=' + dv.getUint8(3));
+      if (dv.byteLength >= 5) alt.push('u8@4=' + dv.getUint8(4));
+      const cand = [];
+      if (spo2 === null && dv.byteLength >= 3) {
+        const b1 = dv.getUint8(1);
+        if (b1 >= 50 && b1 <= 100) cand.push(b1);
+        if (dv.byteLength >= 5) {
+          const b4 = dv.getUint8(4);
+          if (b4 >= 50 && b4 <= 100 && b4 !== b1) cand.push(b4);
+        }
+      }
+      return { spo2: spo2, heartRate: heartRate, alt: alt.join(' '), flags: flags, cand: cand };
+    }
+
+    function parseWeight(dv, h) {
+      const flags = dv.getUint8(0);
+      // Format IF / MovingLife (mis. Onemed IF20250A — OEM IF_B*): berat = u16 BE @8 ÷10 kg, status @14 (0x02 turun, 0x03 stabil)
+      if (dv.byteLength >= 15) {
+        const st = dv.getUint8(14);
+        if (st === 0x02 || st === 0x03) {
+          const kgIF = dv.getUint16(8, false) / 10;
+          if (kgIF >= 20 && kgIF <= 300) {
+            return { weightKg: Math.round(kgIF * 10) / 10, stable: st === 0x03, format: 'if-be', recordedAt: null, flags: flags };
+          }
+        }
+      }
+      // IF_B2A (TERKONFIRMASI capture lapangan 20.25 — Onemed IF20250A): frame notifikasi 14 byte
+      // `10 00 00 c5 0e 03 80 <hi> <lo> …` — berat = u16 BE @7 ÷10 kg (settle 70.1→54.8→…→73.4).
+      // Signature: len ≥14 + byte0 0x10 (tipe paket) + byte6 0x80 — beacon 20B (byte6 0x82) ditolak; rentang 20–300 gerbang kedua.
+      if (dv.byteLength >= 14 && flags === 0x10 && dv.getUint8(6) === 0x80) {
+        const kgB2A = dv.getUint16(7, false) / 10;
+        if (kgB2A >= 20 && kgB2A <= 300) {
+          return { weightKg: Math.round(kgB2A * 10) / 10, format: 'if-b2a', recordedAt: null, flags: flags };
+        }
+      }
+      let off = 1;
+      const imperial = !!(flags & 0x01);
+      let recordedAt = null;
+      if (flags & 0x02) { recordedAt = parseDateTime(dv, off); off += 7; }
+      if (flags & 0x04) off += 1;
+      const raw = dv.getUint16(off, true);
+      const idx = h && typeof h.wssIdx === 'number' ? h.wssIdx : 2;
+      const table = imperial ? WSS_RES_LB : WSS_RES_KG;
+      const step = table[idx] || table[2];
+      let kg = raw * step * (imperial ? 0.453592 : 1);
+      if (!(kg >= 20 && kg <= 300)) {
+        for (let i = 0; i < table.length; i++) {
+          const cand = raw * table[i] * (imperial ? 0.453592 : 1);
+          if (cand >= 20 && cand <= 300) { kg = cand; break; }
+        }
+      }
+      const out = { weightKg: Math.round(kg * 10) / 10, recordedAt: recordedAt, flags: flags };
+      if (!(kg >= 20 && kg <= 300)) {
+        // Discovery: daftar kandidat bobot mentah (offset LE/BE, skala ÷10 lalu ÷1) untuk laporan teknisi.
+        // Kandidat HANYA di-log — weightKg tetap di luar rentang → tidak pernah diterima otomatis.
+        const cands = [];
+        const pushCand = (s) => { if (cands.length < 10) cands.push(s); };
+        for (let o = 0; o + 1 < dv.byteLength && cands.length < 10; o++) {
+          const le = dv.getUint16(o, true);
+          const be = dv.getUint16(o, false);
+          if (le >= 200 && le <= 3000) pushCand('@' + o + 'LE/10=' + (le / 10));
+          if (be >= 200 && be <= 3000 && be !== le) pushCand('@' + o + 'BE/10=' + (be / 10));
+        }
+        for (let o = 0; o + 1 < dv.byteLength && cands.length < 10; o++) {
+          const le = dv.getUint16(o, true);
+          const be = dv.getUint16(o, false);
+          if (le >= 20 && le <= 300) pushCand('@' + o + 'LE=' + le);
+          if (be >= 20 && be <= 300 && be !== le) pushCand('@' + o + 'BE=' + be);
+        }
+        if (cands.length) out.cands = cands.join(' ');
+      }
+      return out;
+    }
+
+    const BT_PARSERS = {
+      tensi: parseBloodPressure,
+      thermo: parseTemperature,
+      spo2: parsePulseOx,
+      scale: parseWeight,
+    };
+
+    function frameIsOld(frame) {
+      const d = frame && frame.values && frame.values.recordedAt;
+      if (!d) return false;
+      if (d.getFullYear && d.getFullYear() < 2020) return false;
+      const diff = Date.now() - d.getTime();
+      if (isNaN(diff)) return false;
+      if (diff < -BT_OLD_RECORD_MS) return false;
+      return diff > BT_OLD_RECORD_MS;
+    }
+
+    function btParseFrame(key, dv, h, keep) {
+      const frame = { t: Date.now(), hex: hexDump(dv, 256), len: dv.byteLength, flags: null, values: null, ok: false, error: '' };
+      try {
+        frame.flags = dv.getUint8(0);
+        frame.values = BT_PARSERS[key](dv, h);
+        frame.ok = plausible(key, frame.values);
+        if (!frame.ok) frame.error = 'nilai di luar rentang wajar';
+      } catch (e) {
+        frame.error = (e && e.message) || 'payload tidak bisa dibaca';
+      }
+      if (h && keep !== false) {
+        h.buffer = h.buffer || [];
+        h.buffer.push(frame);
+        if (h.buffer.length > 20) h.buffer.shift();
+      }
+      // Path read (keep=false) sudah dirangkum oleh log 'baca' baseline/polling — jangan duplikat baris frame.
+      if (keep !== false) {
+        const who = h ? h.deviceName : key;
+        const msg = 'hex ' + frame.hex + ' · len ' + frame.len + ' · flags ' + (frame.flags === null ? '-' : '0x' + frame.flags.toString(16)) +
+          ' → ' + (frame.ok ? JSON.stringify(frame.values)
+            : 'GAGAL: ' + frame.error + (frame.values ? ' · ' + JSON.stringify(frame.values) : ''));
+        // Stream timbangan memancarkan frame identik sangat cepat — throttle: frame identik beruntun (≤3 dtk)
+        // cukup dicatat sekali agar baris koneksi/sniff tidak terusir. Buffer, parser, dan auto-apply TETAP jalan tiap frame.
+        const prev = btLog[0];
+        const dup = !!prev && prev.act === 'frame' && prev.who === who && prev.msg === msg &&
+          Date.now() - Date.parse(prev.t) < 3000;
+        if (!dup) btLogPush(who, 'frame', msg);
+      }
+      return frame;
+    }
+
+    async function btAttach(key) {
+      const h = BT[key];
+      if (!h || h.simulated || !h.characteristic) return false;
+      if (h.listener) return true;
+      try {
+        await h.characteristic.startNotifications();
+        h.listener = (ev) => {
+          const frame = btParseFrame(key, ev.target.value, h);
+          if (h.onFrame) h.onFrame(frame);
+          else btAutoApply(key, frame, h);
+        };
+        h.characteristic.addEventListener('characteristicvaluechanged', h.listener);
+        btLogPush(h.deviceName, 'langganan', 'notifikasi aktif (' + h.props + ')');
+        return true;
+      } catch (e) {
+        btLogPush(h.deviceName, 'langganan', 'GAGAL: ' + ((e && e.message) || 'startNotifications'));
+        return false;
+      }
+    }
+
+    function btReadValue(ch, ms) {
+      const limit = ms || BT_READ_TIMEOUT;
+      return new Promise((resolve, reject) => {
+        let settled = false;
+        const timer = setTimeout(() => {
+          if (settled) return;
+          settled = true;
+          reject(new Error('readValue > ' + limit + 'ms (timeout)'));
+        }, limit);
+        Promise.resolve().then(() => ch.readValue()).then((dv) => {
+          if (settled) return;
+          settled = true;
+          clearTimeout(timer);
+          resolve(dv);
+        }, (err) => {
+          if (settled) return;
+          settled = true;
+          clearTimeout(timer);
+          reject(err);
+        });
+      });
+    }
+
+    function btStableCand(buf) {
+      if (!buf || buf.length < 2) return null;
+      const a = buf[buf.length - 2], b = buf[buf.length - 1];
+      if (!a || !b || a.ok || b.ok || frameIsOld(a) || frameIsOld(b)) return null;
+      if ((Date.now() - a.t) > BT_FRAME_MAX_AGE || (Date.now() - b.t) > BT_FRAME_MAX_AGE) return null;
+      const ca = a.values && a.values.cand, cb = b.values && b.values.cand;
+      if (!ca || !ca.length || !cb || !cb.length) return null;
+      return ca[0] === cb[0] ? ca[0] : null;
+    }
+
+    function btPickScale(buf) {
+      return buf && buf.length ? buf[buf.length - 1] : null;
+    }
+
+    /* Auto-kirim bobot: frame valid pertama (tanpa gerbang konfirmasi) langsung
+       di-dispatch ke komponen — timbangan auto-off, data tak boleh tertunda. */
+    function btAutoApply(key, frame, h) {
+      if (key !== 'scale' || !frame || !frame.ok || frameIsOld(frame)) return;
+      if ((Date.now() - frame.t) > BT_FRAME_MAX_AGE) return;
+      const v = frame.values;
+      if (h.autoSentKg === v.weightKg) return;
+      h.autoSentKg = v.weightKg;
+      window.dispatchEvent(new CustomEvent('sf2w:bt-auto', { detail: { key: key, values: v } }));
+    }
+
+    /* --- Hasil simulasi (fallback saat GATT/notify tak tersedia) --- */
+    function rand(min, max) { return Math.round(min + Math.random() * (max - min)); }
+
+    function simulatedValues(key, employee) {
+      if (key === 'tensi') return { systolic: rand(115, 135), diastolic: rand(75, 88), heartRate: rand(68, 82) };
+      if (key === 'thermo') return { temperature: Math.round((36.2 + Math.random() * 1.0) * 10) / 10 };
+      if (key === 'spo2') return { spo2: rand(96, 99), heartRate: rand(66, 80) };
+      const h = employee && employee.heightCm ? employee.heightCm : 170;
+      return { weightKg: Math.round(h * 0.43 * 10) / 10 };
+    }
+
+    /* --- Pengukuran: notifikasi GATT nyata; simulasi hanya bila GATT tak tersedia --- */
+    function simulateMeasure(key, employee, onProgress, reason) {
+      return new Promise((resolve) => {
+        let pct = 0;
+        onProgress && onProgress(0, 0);
+        const tick = () => {
+          if (btCancelled) {
+            onProgress && onProgress(0, 0);
+            return resolve({ ok: false, cancelled: true });
+          }
+          pct += rand(8, 18);
+          if (pct >= 100) {
+            onProgress && onProgress(100, 0);
+            btLogPush(key, 'hasil', 'SIMULASI — ' + (reason || '-'));
+            return resolve({
+              ok: true, simulated: true, values: simulatedValues(key, employee),
+              reason: reason || 'Perangkat mode simulasi aktif.',
+            });
+          }
+          onProgress && onProgress(pct, 0);
+          setTimeout(tick, 380);
+        };
+        setTimeout(tick, 380);
+      });
+    }
+
+    function bluetoothMeasure(key, employee, onProgress) {
+      btCancelled = false;
+      const handle = BT[key];
+      const isReal = !!(handle && handle.characteristic && !handle.simulated);
+
+      if (!isReal) {
+        return simulateMeasure(key, employee, onProgress,
+          handle ? 'Perangkat mode simulasi aktif.' : 'Koneksi GATT tidak tersedia — hasil pengukuran simulasi.');
+      }
+
+      const buffered = (handle.buffer || []).filter((f) => f.ok && !frameIsOld(f) && (Date.now() - f.t) <= BT_FRAME_MAX_AGE);
+      const bufPick = key === 'scale' ? btPickScale(buffered) : (buffered.length ? buffered[buffered.length - 1] : null);
+      if (bufPick) {
+        handle.buffer = [];
+        onProgress && onProgress(100, 0);
+        btLogPush(handle.deviceName, 'hasil', 'dipakai dari buffer (sebelum tombol ditekan): ' + JSON.stringify(bufPick.values));
+        return Promise.resolve({ ok: true, simulated: false, values: bufPick.values });
+      }
+      const preCand = btStableCand(handle.buffer);
+      if (preCand != null) {
+        const vals = Object.assign({}, handle.buffer[handle.buffer.length - 1].values, { spo2: preCand, heartRate: null });
+        handle.buffer = [];
+        onProgress && onProgress(100, 0);
+        btLogPush(handle.deviceName, 'hasil', 'dipakai dari buffer (kandidat stabil): ' + JSON.stringify(vals));
+        return Promise.resolve({ ok: true, simulated: false, values: vals });
+      }
+
+      return (async () => {
+        const attached = await btAttach(key);
+        if (btCancelled) return { ok: false, cancelled: true };
+
+        const props = (handle.characteristic && handle.characteristic.properties) || {};
+        const canRead = !!props.read;
+
+        if (!attached && !canRead) {
+          return {
+            ok: false,
+            reason: 'Tidak bisa menerima data dari alat (tanpa notifikasi & tanpa read) — periksa panel Detail di kartu perangkat, atau gunakan input manual.',
+          };
+        }
+
+        let baselineHex = null;
+        let candVal = null;
+        let candOk = 0;
+        if (canRead && key === 'scale') {
+          // Timbangan (mis. IF_B2A): read = buffer status nol, bobot hanya lewat notifikasi — baseline dilewati
+          // agar Mulai langsung siap (hemat hingga 4 dtk; jendela hasil alat hanya ±3 dtk). Polling tetap jalan
+          // sebagai cadangan dan nilai read identik tidak lagi ditahan oleh logika "sama dengan baseline".
+          btLogPush(handle.deviceName, 'baca', 'baseline dilewati (timbangan: bobot lewat notifikasi)');
+        } else if (canRead) {
+          try {
+            const dv0 = await btReadValue(handle.characteristic);
+            const base = btParseFrame(key, dv0, handle, false);
+            baselineHex = base.hex;
+            if (key === 'spo2' && !base.ok && base.values && base.values.cand && base.values.cand.length) {
+              candVal = base.values.cand[0];
+              candOk = 1;
+            }
+            btLogPush(handle.deviceName, 'baca', 'baseline hex ' + base.hex + ' · len ' + base.len +
+              (base.ok ? ' (nilai terkini, hanya pembanding)'
+                : (candOk ? ' (kandidat ' + candVal + ' konfirmasi 1/' + BT_SPO2_STABLE_READS + ')' : ' (' + (base.error || '-') + ')')));
+          } catch (e) {
+            btLogPush(handle.deviceName, 'baca', 'baseline readValue gagal: ' + ((e && e.message) || '-'));
+          }
+          if (btCancelled) return { ok: false, cancelled: true };
+        }
+
+        return await new Promise((resolve) => {
+          const startedAt = Date.now();
+          let done = false;
+          let iv = null;
+          let pollIv = null;
+          let timeoutId = null;
+          let reads = 0;
+          let notifyCount = 0;
+          let stableOk = 0;
+          let polling = false;
+          let lastScaleFrame = null;
+          let onDisc = null;
+
+          function cleanup() {
+            handle.onFrame = null;
+            if (onDisc && handle.device && typeof handle.device.removeEventListener === 'function') {
+              handle.device.removeEventListener('gattserverdisconnected', onDisc);
+            }
+            if (iv) clearInterval(iv);
+            if (pollIv) clearInterval(pollIv);
+            if (timeoutId) clearTimeout(timeoutId);
+          }
+
+          function settle(result) {
+            if (done) return;
+            done = true;
+            cleanup();
+            resolve(result);
+          }
+
+          if (handle.device && typeof handle.device.addEventListener === 'function') {
+            onDisc = () => {
+              if (done) return;
+              if (key === 'scale' && lastScaleFrame) {
+                onProgress && onProgress(100, 0);
+                btLogPush(handle.deviceName, 'hasil', 'koneksi terputus — pakai bobot terakhir: ' + JSON.stringify(lastScaleFrame));
+                handle.buffer = [];
+                settle({ ok: true, simulated: false, values: lastScaleFrame, disconnected: true });
+              } else {
+                btLogPush(handle.deviceName, 'putus', 'koneksi terputus sebelum data diterima');
+                settle({ ok: false, reason: 'Koneksi terputus sebelum data diterima — nyalakan ulang alat lalu ulangi pengukuran.' });
+              }
+            };
+            handle.device.addEventListener('gattserverdisconnected', onDisc);
+          }
+
+          const early = (handle.buffer || []).filter((f) => f.ok && !frameIsOld(f) && (Date.now() - f.t) <= BT_FRAME_MAX_AGE);
+          const earlyPick = key === 'scale' ? btPickScale(early) : (early.length ? early[early.length - 1] : null);
+          if (earlyPick) {
+            onProgress && onProgress(100, 0);
+            btLogPush(handle.deviceName, 'hasil', 'via notifikasi (saat mulai): ' + JSON.stringify(earlyPick.values));
+            handle.buffer = [];
+            return settle({ ok: true, simulated: false, values: earlyPick.values });
+          }
+          const earlyCand = btStableCand(handle.buffer);
+          if (earlyCand != null) {
+            const vals = Object.assign({}, handle.buffer[handle.buffer.length - 1].values, { spo2: earlyCand, heartRate: null });
+            onProgress && onProgress(100, 0);
+            btLogPush(handle.deviceName, 'hasil', 'via notifikasi (kandidat stabil): ' + JSON.stringify(vals));
+            handle.buffer = [];
+            return settle({ ok: true, simulated: false, values: vals });
+          }
+
+          handle.onFrame = (frame) => {
+            if (done) return;
+            notifyCount++;
+            if (btCancelled) return settle({ ok: false, cancelled: true });
+            if (!frame.ok) {
+              if (key === 'spo2') {
+                const pick = btStableCand(handle.buffer);
+                if (pick != null) {
+                  const vals = Object.assign({}, frame.values, { spo2: pick, heartRate: null });
+                  onProgress && onProgress(100, 0);
+                  btLogPush(handle.deviceName, 'hasil', 'via notifikasi (kandidat stabil): ' + JSON.stringify(vals));
+                  handle.buffer = [];
+                  settle({ ok: true, simulated: false, values: vals });
+                }
+              }
+              return;
+            }
+            if (frameIsOld(frame)) {
+              btLogPush(handle.deviceName, 'abaikan', 'data riwayat lama: ' + frame.hex);
+              return;
+            }
+            if (key === 'scale') lastScaleFrame = frame.values;
+            onProgress && onProgress(100, 0);
+            btLogPush(handle.deviceName, 'hasil', 'via notifikasi: ' + JSON.stringify(frame.values));
+            handle.buffer = [];
+            settle({ ok: true, simulated: false, values: frame.values });
+          };
+
+          async function pollRead() {
+            if (done || polling || btCancelled || !canRead) return;
+            polling = true;
+            try {
+              const dv = await btReadValue(handle.characteristic);
+              reads++;
+              const frame = btParseFrame(key, dv, handle, false);
+              const old = frameIsOld(frame);
+              if (key === 'scale' && frame.ok && !old) lastScaleFrame = frame.values;
+              const changed = baselineHex === null || frame.hex !== baselineHex;
+              const hold = frame.ok && !old && !changed && key === 'spo2';
+              if (hold) stableOk++; else stableOk = 0;
+              const stable = hold && stableOk >= BT_SPO2_STABLE_READS;
+              const accept = frame.ok && !old && (changed || stable);
+              let hadCand = false;
+              let candPick = null;
+              if (!frame.ok) {
+                if (key === 'spo2' && frame.values && frame.values.cand && frame.values.cand.length) {
+                  hadCand = true;
+                  const c = frame.values.cand[0];
+                  if (c === candVal) candOk++; else { candVal = c; candOk = 1; }
+                  if (candOk >= BT_SPO2_STABLE_READS) candPick = c;
+                } else {
+                  candVal = null;
+                  candOk = 0;
+                }
+              }
+              btLogPush(handle.deviceName, 'baca', '#' + reads + ' hex ' + frame.hex + ' · len ' + frame.len + ' → ' +
+                (accept ? (changed ? 'DITERIMA' : 'DITERIMA (nilai stabil di alat)')
+                  : candPick != null ? 'DITERIMA (kandidat stabil)'
+                  : !frame.ok ? 'GAGAL: ' + frame.error +
+                      (hadCand ? ' · kandidat ' + candVal + ' (konfirmasi ' + candOk + '/' + BT_SPO2_STABLE_READS + ')' : '')
+                  : old ? 'riwayat lama'
+                  : hold ? 'sama dengan baseline (konfirmasi ' + stableOk + '/' + BT_SPO2_STABLE_READS + ')'
+                  : 'sama dengan baseline'));
+              if (accept) {
+                onProgress && onProgress(100, 0);
+                btLogPush(handle.deviceName, 'hasil',
+                  (changed ? 'via polling read: ' : 'via polling read (nilai stabil di alat): ') + JSON.stringify(frame.values));
+                handle.buffer = [];
+                settle({ ok: true, simulated: false, values: frame.values });
+              }
+              if (candPick != null) {
+                const vals = Object.assign({}, frame.values, { spo2: candPick, heartRate: null });
+                onProgress && onProgress(100, 0);
+                btLogPush(handle.deviceName, 'hasil', 'via polling read (kandidat stabil): ' + JSON.stringify(vals));
+                handle.buffer = [];
+                settle({ ok: true, simulated: false, values: vals });
+              }
+            } catch (e) {
+              btLogPush(handle.deviceName, 'baca', 'readValue gagal: ' + ((e && e.message) || '-'));
+            } finally {
+              polling = false;
+            }
+          }
+
+          iv = setInterval(() => {
+            if (btCancelled) return settle({ ok: false, cancelled: true });
+            const elapsed = Date.now() - startedAt;
+            const remain = Math.max(0, Math.ceil((BT_MEASURE_TIMEOUT - elapsed) / 1000));
+            onProgress && onProgress(Math.min(95, Math.round((elapsed / BT_MEASURE_TIMEOUT) * 95)), remain);
+          }, 500);
+
+          // Timbangan dipol lebih cepat (maks 1 dtk) — cadangan notifikasi saat jendela hasil hanya ±3 dtk.
+        if (canRead) pollIv = setInterval(pollRead, key === 'scale' ? Math.min(BT_POLL_INTERVAL, 1000) : BT_POLL_INTERVAL);
+
+          timeoutId = setTimeout(() => {
+            const frames = (handle.buffer || []).length;
+            let reason;
+            if (frames) {
+              reason = 'Alat mengirim ' + frames + ' data tetapi tidak valid / terlalu lama — lihat panel Detail.';
+            } else if (reads || notifyCount) {
+              reason = 'Nilai alat terbaca ' + reads + '× / notifikasi ' + notifyCount + '× tetapi tidak berubah atau tidak valid dalam ' +
+                Math.round(BT_MEASURE_TIMEOUT / 1000) + ' detik — tekan tombol di aplikasi lalu ukur ulang di alat.';
+            } else {
+              reason = 'Alat tidak mengirim data dalam ' + Math.round(BT_MEASURE_TIMEOUT / 1000) + ' detik — ukur di alat setelah menekan tombol.';
+            }
+            btLogPush(handle.deviceName, 'timeout', reason);
+            settle({ ok: false, reason: reason, frames: frames, reads: reads });
+          }, BT_MEASURE_TIMEOUT);
+        });
+      })();
+    }
+
+    /* ========== HASH ROUTER ========== */
+    function parseHash() {
+      const h = (location.hash || '#/login').replace(/^#/, '');
+      const parts = h.split('/').filter(Boolean);
+      return { page: parts[0] || 'login', query: parts[1] || '' };
+    }
+
+    /* ========== TOAST ========== */
+    const toastState = reactive({ show: false, type: 'success', message: '', timer: null });
+    function showToast(message, type = 'success') {
+      if (toastState.timer) clearTimeout(toastState.timer);
+      toastState.type = type;
+      toastState.message = message;
+      toastState.show = true;
+      toastState.timer = setTimeout(() => { toastState.show = false; }, 3000);
+    }
+
+    /* ========== APP ROOT ========== */
+    const App = {
+      setup() {
+        const route = ref(parseHash());
+        const auth = reactive({
+          loggedIn: sessionStorage.getItem('sf2w_session') === '1',
+          user: JSON.parse(sessionStorage.getItem('sf2w_user') || 'null'),
+        });
+        const employees = ref(MOCK.employees.slice());
+        const records = ref([]);
+        const stats = ref({ totalToday: 0, fitToday: 0, unfitToday: 0, avgMinutes: 0, weekly: MOCK.weekly });
+        const sidebarOpen = ref(true);
+
+        function onHash() {
+          route.value = parseHash();
+          if (!auth.loggedIn && route.value.page !== 'login') {
+            location.hash = '#/login';
+          }
+        }
+
+        async function loadRecords() {
+          const res = await apiPost('listRecords', {});
+          if (res.ok) records.value = res.records || [];
+        }
+
+        async function loadStats() {
+          const res = await apiPost('stats', {});
+          if (res.ok) stats.value = res;
+        }
+
+        async function loadEmployees() {
+          const res = await apiPost('listEmployees', {});
+          if (res.ok) employees.value = res.employees || [];
+        }
+
+        async function loadDutyOfficers() {
+          const res = await apiPost('listDutyOfficers', {});
+          if (res.ok && res.officers) {
+            const overrides = {};
+            res.officers.forEach((o) => {
+              overrides[o.id] = { name: o.name, role: o.role };
+            });
+            sessionStorage.setItem('sf2w_duty_overrides', JSON.stringify(overrides));
+            window.dispatchEvent(new CustomEvent('sf2w:duty-changed', { detail: { id: sessionStorage.getItem('sf2w_duty') || '' } }));
+          }
+        }
+
+        function onEmployeeAdded(e) {
+          const emp = e.detail;
+          if (!emp || !emp.id) return;
+          const i = employees.value.findIndex((x) => x.id === emp.id);
+          if (i >= 0) employees.value.splice(i, 1, emp);
+          else employees.value.push(emp);
+        }
+
+        async function doLogin(pin) {
+          const res = await apiPost('login', { pin });
+          if (res.ok) {
+            auth.loggedIn = true;
+            auth.user = res.user;
+            sessionStorage.setItem('sf2w_session', '1');
+            sessionStorage.setItem('sf2w_user', JSON.stringify(res.user));
+            showToast('Login berhasil. Selamat datang.');
+            location.hash = '#/dashboard';
+            return true;
+          }
+          showToast(res.message || 'Login gagal', 'error');
+          return false;
+        }
+
+        function doLogout() {
+          auth.loggedIn = false;
+          auth.user = null;
+          sessionStorage.removeItem('sf2w_session');
+          sessionStorage.removeItem('sf2w_user');
+          location.hash = '#/login';
+        }
+
+        function navigate(page) {
+          location.hash = '#/' + page;
+        }
+
+        async function saveRecord(payload) {
+          const res = await apiPost('saveRecord', payload);
+          if (res.ok) {
+            const record = { ...payload, id: res.id };
+            if (res.duplicate) {
+              if (!records.value.some((r) => r.id === res.id)) records.value.unshift(record);
+              await loadStats();
+              showToast('Data sudah tersimpan sebelumnya — pengulangan diabaikan.');
+              return true;
+            }
+            records.value.unshift(record);
+            await loadStats();
+            showToast('Data pemeriksaan tersimpan.');
+            return true;
+          }
+          showToast(res.message || 'Gagal menyimpan', 'error');
+          return false;
+        }
+
+        onMounted(async () => {
+          window.addEventListener('hashchange', onHash);
+          window.addEventListener('sf2w:employee-added', onEmployeeAdded);
+          if (auth.loggedIn) {
+            await Promise.all([loadRecords(), loadStats(), loadEmployees(), loadDutyOfficers()]);
+          }
+          onHash();
+        });
+
+        onUnmounted(() => {
+          window.removeEventListener('hashchange', onHash);
+          window.removeEventListener('sf2w:employee-added', onEmployeeAdded);
+        });
+
+        watch(() => auth.loggedIn, async (v) => {
+          if (v) await Promise.all([loadRecords(), loadStats(), loadEmployees(), loadDutyOfficers()]);
+        });
+
+        return {
+          route, auth, employees, records, stats, sidebarOpen,
+          doLogin, doLogout, navigate, saveRecord, loadRecords, loadStats,
+          toast: toastState, showToast,
+        };
+      },
+      template: `
+        <div class="min-h-screen">
+          <LoginPage v-if="route.page === 'login'" :on-login="doLogin" />
+          <AppShell
+            v-else
+            :auth="auth"
+            :page="route.page"
+            :sidebar-open="sidebarOpen"
+            @toggle-sidebar="sidebarOpen = !sidebarOpen"
+            @logout="doLogout"
+            @navigate="navigate"
+          >
+            <DashboardPage v-if="route.page === 'dashboard'" :stats="stats" :records="records" @navigate="navigate" />
+            <PemeriksaanPage
+              v-else-if="route.page === 'pemeriksaan'"
+              :employees="employees"
+              :on-save="saveRecord"
+              @navigate="navigate"
+            />
+            <MonitoringPage
+              v-else-if="route.page === 'monitoring'"
+              :records="records"
+              @refresh="loadRecords"
+            />
+            <PengaturanPage v-else-if="route.page === 'pengaturan'" />
+            <DashboardPage v-else :stats="stats" :records="records" @navigate="navigate" />
+          </AppShell>
+          <ToastHost />
+        </div>
+      `,
+    };
+
+    /* ========== TOAST COMPONENT ========== */
+    const ToastHost = {
+      setup() {
+        return { toast: toastState };
+      },
+      template: `
+        <transition name="fade">
+          <div
+            v-if="toast.show"
+            class="fixed bottom-6 right-6 z-[9999] min-w-[260px] max-w-sm rounded-xl px-4 py-3 shadow-lift text-white text-sm font-medium"
+            :class="toast.type === 'error' ? 'bg-danger' : 'bg-success'"
+            role="status"
+          >
+            {{ toast.message }}
+          </div>
+        </transition>
+      `,
+    };
+
+    /* ========== LOGIN ========== */
+    const LoginPage = {
+      props: ['onLogin'],
+      setup(props) {
+        const pin = ref('');
+        const loading = ref(false);
+        const error = ref('');
+
+        async function submit() {
+          if (pin.value.length < 4) {
+            error.value = 'PIN minimal 4 digit';
+            return;
+          }
+          loading.value = true;
+          error.value = '';
+          const ok = await props.onLogin(pin.value);
+          if (!ok) error.value = 'PIN salah. Coba lagi.';
+          loading.value = false;
+          pin.value = '';
+        }
+
+        return { pin, loading, error, submit };
+      },
+      template: `
+        <div class="min-h-screen flex items-center justify-center bg-canvas page-enter px-4 relative overflow-hidden">
+          <div class="absolute -top-32 -left-32 w-96 h-96 rounded-full bg-primary/10 blur-3xl pointer-events-none"></div>
+          <div class="absolute -bottom-40 -right-24 w-96 h-96 rounded-full bg-chartlight/40 blur-3xl pointer-events-none"></div>
+          <div class="w-full max-w-md bg-surface rounded-lg shadow-card p-8 border border-line relative">
+            <div class="flex items-center gap-3 mb-8">
+              <div class="w-12 h-12 rounded-xl bg-primary flex items-center justify-center shadow-[0_10px_24px_-10px_rgba(26,115,232,.6)]">
+                <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"/></svg>
+              </div>
+              <div>
+                <h1 class="text-xl font-bold text-ink">SMART FIT2WORK</h1>
+                <p class="text-sm text-muted">Pemeriksaan Kelaikan Kerja</p>
+              </div>
+            </div>
+
+            <h2 class="text-lg font-bold text-ink mb-1">Masuk</h2>
+            <p class="text-sm text-muted mb-6">Masukkan PIN perawat untuk memulai shift.</p>
+
+            <form @submit.prevent="submit">
+              <label class="block text-sm font-medium text-ink mb-2" for="pin">PIN</label>
+              <input
+                id="pin"
+                v-model="pin"
+                type="password"
+                inputmode="numeric"
+                maxlength="8"
+                placeholder="••••"
+                class="w-full min-touch px-4 py-3 rounded-md border border-line bg-surface text-ink placeholder-muted focus:outline-none focus:border-primary mb-2"
+              />
+              <p v-if="error" class="text-sm text-danger mb-3">{{ error }}</p>
+              <button
+                type="submit"
+                :disabled="loading"
+                class="w-full min-touch mt-2 rounded-md bg-primary text-white font-semibold hover:opacity-90 disabled:opacity-60 flex items-center justify-center gap-2"
+              >
+                <span v-if="loading" class="spinner"></span>
+                {{ loading ? 'Memeriksa…' : 'Masuk' }}
+              </button>
+            </form>
+
+            <p class="text-xs text-muted mt-6 text-center">Demo PIN: <span class="font-semibold text-ink">1234</span> · Chrome / Edge direkomendasikan (Web Bluetooth)</p>
+          </div>
+        </div>
+      `,
+    };
+
+    /* ========== APP SHELL ========== */
+    const AppShell = {
+      props: ['auth', 'page', 'sidebarOpen'],
+      emits: ['toggle-sidebar', 'logout', 'navigate'],
+      setup(props, { emit }) {
+        const search = ref('');
+        const searchResults = ref([]);
+        let debounceTimer = null;
+
+        const mainMenu = [
+          { key: 'dashboard', label: 'Dashboard', icon: 'grid' },
+          { key: 'pemeriksaan', label: 'Pemeriksaan', icon: 'heart' },
+          { key: 'monitoring', label: 'Monitoring HSSE', icon: 'table' },
+        ];
+        const genMenu = [
+          { key: 'dashboard', label: 'Laporan', icon: 'chart' },
+          { key: 'pengaturan', label: 'Pengaturan', icon: 'cog' },
+        ];
+
+        // Petugas jaga (dipilih di halaman Pengaturan) — header mengikuti pilihan + nama suntingan.
+        const dutyId = ref(sessionStorage.getItem('sf2w_duty') || '');
+        const dutyOverrides = ref((() => {
+          try { return JSON.parse(sessionStorage.getItem('sf2w_duty_overrides') || '{}') || {}; } catch (e) { return {}; }
+        })());
+        const duty = computed(() => {
+          const o = MOCK.dutyOfficers.find((x) => x.id === dutyId.value);
+          if (!o) return null;
+          const ov = dutyOverrides.value[o.id];
+          return ov ? Object.assign({}, o, { name: ov.name || o.name, role: ov.role || o.role }) : o;
+        });
+        function onDutyChanged() {
+          dutyId.value = sessionStorage.getItem('sf2w_duty') || '';
+          try { dutyOverrides.value = JSON.parse(sessionStorage.getItem('sf2w_duty_overrides') || '{}') || {}; } catch (e) { dutyOverrides.value = {}; }
+        }
+        window.addEventListener('sf2w:duty-changed', onDutyChanged);
+        onUnmounted(() => window.removeEventListener('sf2w:duty-changed', onDutyChanged));
+
+        function onSearch() {
+          if (debounceTimer) clearTimeout(debounceTimer);
+          debounceTimer = setTimeout(() => {
+            const q = search.value.trim().toLowerCase();
+            if (!q) {
+              searchResults.value = [];
+              return;
+            }
+            searchResults.value = MOCK.employees
+              .filter((e) => e.name.toLowerCase().includes(q) || e.id.toLowerCase().includes(q))
+              .slice(0, 5);
+          }, 300);
+        }
+
+        function pickEmployee(emp) {
+          search.value = '';
+          searchResults.value = [];
+          emit('navigate', 'pemeriksaan');
+          window.dispatchEvent(new CustomEvent('sf2w:pick-employee', { detail: emp }));
+        }
+
+        function go(key) {
+          emit('navigate', key);
+        }
+
+        const icons = {
+          grid: 'M4 5a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1H5a1 1 0 01-1-1V5zm10 0a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1h-4a1 1 0 01-1-1V5zM4 15a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1H5a1 1 0 01-1-1v-4zm10 0a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1h-4a1 1 0 01-1-1v-4z',
+          heart: 'M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z',
+          table: 'M3 10h18M3 14h18M3 6h18M3 18h18',
+          chart: 'M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z',
+          cog: 'M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z',
+        };
+
+        return { search, searchResults, mainMenu, genMenu, onSearch, pickEmployee, go, icons, duty };
+      },
+      template: `
+        <div class="min-h-screen flex bg-canvas">
+          <!-- Sidebar -->
+          <aside
+            class="fixed lg:static inset-y-0 left-0 z-40 w-[280px] bg-surface border-r border-line flex flex-col transition-transform duration-200"
+            :class="sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0 lg:w-0 lg:overflow-hidden'"
+          >
+            <div class="p-6 flex items-center justify-between">
+              <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-xl bg-primary flex items-center justify-center shrink-0 shadow-[0_8px_20px_-8px_rgba(26,115,232,.6)]">
+                  <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"/></svg>
+                </div>
+                <div class="leading-tight">
+                  <div class="font-bold text-ink text-sm">SMART FIT2WORK</div>
+                  <div class="text-xs text-muted">TPKNM · HSSE</div>
+                </div>
+              </div>
+              <button class="lg:hidden min-touch text-muted" @click="$emit('toggle-sidebar')" aria-label="Tutup menu">✕</button>
+            </div>
+
+            <nav class="flex-1 px-4 overflow-y-auto">
+              <p class="text-xs font-semibold text-muted uppercase tracking-wider px-3 mb-2">Menu Utama</p>
+              <button
+                v-for="item in mainMenu"
+                :key="item.key"
+                class="w-full flex items-center gap-3 px-3 py-3 mb-1 rounded-lg text-sm font-medium min-touch transition"
+                :class="page === item.key ? 'bg-primary text-white' : 'text-ink hover:bg-canvas'"
+                @click="go(item.key)"
+              >
+                <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" :d="icons[item.icon]"/></svg>
+                {{ item.label }}
+              </button>
+
+              <p class="text-xs font-semibold text-muted uppercase tracking-wider px-3 mb-2 mt-6">Umum</p>
+              <button
+                v-for="item in genMenu"
+                :key="item.label"
+                class="w-full flex items-center gap-3 px-3 py-3 mb-1 rounded-lg text-sm font-medium min-touch"
+                :class="page === item.key ? 'bg-iconbg text-primary font-semibold' : 'text-ink hover:bg-canvas'"
+                @click="go(item.key)"
+              >
+                <svg class="w-5 h-5 shrink-0 text-muted" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" :d="icons[item.icon]"/></svg>
+                {{ item.label }}
+              </button>
+            </nav>
+
+            <div class="p-4">
+              <div class="rounded-2xl p-5 bg-gradient-to-br from-primary to-chartdark text-white overflow-hidden relative">
+                <div class="absolute -right-8 -top-8 w-28 h-28 rounded-full bg-white/10"></div>
+                <div class="absolute -right-3 top-10 w-14 h-14 rounded-full bg-white/10"></div>
+                <p class="text-sm font-semibold mb-1 relative">Web Bluetooth</p>
+                <p class="text-xs opacity-90 mb-3 relative">Gunakan Chrome/Edge pada tablet untuk koneksi alat medis.</p>
+                <button class="min-touch w-full rounded-lg bg-white text-primary text-sm font-semibold shadow-soft relative" @click="go('pemeriksaan')">Mulai Pemeriksaan</button>
+              </div>
+              <button
+                class="w-full mt-3 flex items-center gap-2 px-3 py-3 rounded-md text-sm text-danger hover:bg-canvas min-touch"
+                @click="$emit('logout')"
+              >
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/></svg>
+                Keluar
+              </button>
+            </div>
+          </aside>
+
+          <div v-if="sidebarOpen" class="fixed inset-0 bg-black/30 z-30 lg:hidden" @click="$emit('toggle-sidebar')"></div>
+
+          <!-- Main -->
+          <div class="flex-1 flex flex-col min-w-0">
+            <header class="bg-surface/85 backdrop-blur-xl border-b border-line px-4 lg:px-8 py-4 flex items-center gap-4 sticky top-0 z-20">
+              <button class="lg:hidden min-touch text-ink" @click="$emit('toggle-sidebar')" aria-label="Buka menu">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" d="M4 6h16M4 12h16M4 18h16"/></svg>
+              </button>
+
+              <div class="hidden sm:block">
+                <h1 class="text-lg font-bold text-ink tracking-tight">Halo Portizen</h1>
+                <p class="text-xs text-muted">Silahkan cek kesehatan anda</p>
+              </div>
+
+              <div class="flex-1 relative max-w-md ml-auto">
+                <svg class="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-muted" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" d="M21 21l-4.35-4.35M17 11a6 6 0 11-12 0 6 6 0 0112 0z"/></svg>
+                <input
+                  v-model="search"
+                  @input="onSearch"
+                  type="search"
+                  placeholder="Cari ID / nama karyawan…"
+                  class="w-full min-touch pl-11 pr-4 rounded-full border border-line bg-canvas text-sm text-ink placeholder-muted focus:outline-none focus:border-primary"
+                />
+                <div v-if="searchResults.length" class="absolute top-full mt-2 left-0 right-0 bg-surface border border-line rounded-md shadow-card overflow-hidden z-30">
+                  <button
+                    v-for="emp in searchResults"
+                    :key="emp.id"
+                    class="w-full text-left px-4 py-3 hover:bg-canvas flex items-center justify-between gap-2 min-touch"
+                    @click="pickEmployee(emp)"
+                  >
+                    <span>
+                      <span class="block text-sm font-medium text-ink">{{ emp.name }}</span>
+                      <span class="block text-xs text-muted">{{ emp.id }} · {{ emp.unit }}</span>
+                    </span>
+                    <span class="text-xs text-primary font-medium">Pilih</span>
+                  </button>
+                </div>
+              </div>
+
+              <div class="hidden md:flex items-center gap-2">
+                <button class="min-touch w-11 h-11 rounded-full border border-line flex items-center justify-center text-ink hover:bg-canvas" title="Notifikasi">
+                  <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" d="M15 17h5l-1.4-1.4A2 2 0 0118 14.2V11a6 6 0 10-12 0v3.2c0 .5-.2 1-.6 1.4L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/></svg>
+                </button>
+              </div>
+
+              <div class="flex items-center gap-3 pl-2 border-l border-line">
+                <div class="w-10 h-10 rounded-full bg-iconbg text-primary font-bold flex items-center justify-center text-sm">
+                  {{ (duty ? duty.initials : auth.user?.initials) || 'P' }}
+                </div>
+                <div class="hidden sm:block leading-tight">
+                  <div class="text-sm font-semibold text-ink">{{ (duty ? duty.name : auth.user?.name) || 'Perawat' }}</div>
+                  <div class="text-xs text-muted">{{ (duty ? duty.role : auth.user?.role) || '' }}</div>
+                </div>
+              </div>
+            </header>
+
+            <main class="flex-1 p-4 lg:p-8 page-enter">
+              <slot></slot>
+            </main>
+          </div>
+        </div>
+      `,
+    };
+
+    /* ========== DASHBOARD ========== */
+    const DashboardPage = {
+      props: ['stats', 'records'],
+      emits: ['navigate'],
+      setup(props) {
+        const maxBar = computed(() => {
+          const w = props.stats.weekly || [];
+          return Math.max(1, ...w.map((d) => d.fit + d.unfit));
+        });
+        const recent = computed(() => (props.records || []).slice(0, 6));
+        const fitRate = computed(() => {
+          const t = props.stats.totalToday || 0;
+          return t ? Math.round((props.stats.fitToday / t) * 100) : 0;
+        });
+        return { maxBar, recent, fitRate, fmtTime };
+      },
+      template: `
+        <div class="space-y-6">
+          <div class="flex flex-wrap items-end justify-between gap-3">
+            <div>
+              <h2 class="text-xl font-bold text-ink">Ringkasan Hari Ini</h2>
+              <p class="text-sm text-muted">Monitor kelaikan kerja karyawan sebelum shift.</p>
+            </div>
+            <button class="min-touch px-5 py-3 rounded-md bg-primary text-white text-sm font-semibold" @click="$emit('navigate', 'pemeriksaan')">
+              + Pemeriksaan Baru
+            </button>
+          </div>
+
+          <!-- Stat cards -->
+          <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-6">
+            <div class="bg-surface rounded-lg shadow-card border border-line p-5">
+              <div class="flex items-start justify-between mb-3">
+                <div>
+                  <p class="text-sm text-muted">Total Pemeriksaan</p>
+                  <p class="text-2xl font-bold text-ink mt-1">{{ stats.totalToday }}<span class="text-base font-medium">+</span></p>
+                </div>
+                <div class="w-12 h-12 rounded-full bg-iconbg flex items-center justify-center">
+                  <svg class="w-6 h-6 text-primary" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
+                </div>
+              </div>
+              <p class="text-xs text-success font-semibold">↑ {{ stats.totalToday }} hari ini</p>
+            </div>
+
+            <div class="bg-surface rounded-lg shadow-card border border-line p-5">
+              <div class="flex items-start justify-between mb-3">
+                <div>
+                  <p class="text-sm text-muted">Status FIT</p>
+                  <p class="text-2xl font-bold text-ink mt-1">{{ stats.fitToday }}</p>
+                </div>
+                <div class="w-12 h-12 rounded-full bg-success/10 flex items-center justify-center">
+                  <svg class="w-6 h-6 text-success" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" d="M5 13l4 4L19 7"/></svg>
+                </div>
+              </div>
+              <p class="text-xs text-success font-semibold">{{ fitRate }}% dari total</p>
+            </div>
+
+            <div class="bg-surface rounded-lg shadow-card border border-line p-5">
+              <div class="flex items-start justify-between mb-3">
+                <div>
+                  <p class="text-sm text-muted">Status UNFIT</p>
+                  <p class="text-2xl font-bold text-ink mt-1">{{ stats.unfitToday }}</p>
+                </div>
+                <div class="w-12 h-12 rounded-full bg-danger/10 flex items-center justify-center">
+                  <svg class="w-6 h-6 text-danger" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" d="M12 9v4m0 4h.01M4.93 19h14.14a2 2 0 001.74-3L13.74 4a2 2 0 00-3.48 0L3.19 16a2 2 0 001.74 3z"/></svg>
+                </div>
+              </div>
+              <p class="text-xs text-danger font-semibold">Perlu tindak lanjut HSSE</p>
+            </div>
+
+            <div class="bg-surface rounded-lg shadow-card border border-line p-5">
+              <div class="flex items-start justify-between mb-3">
+                <div>
+                  <p class="text-sm text-muted">Rerata Waktu</p>
+                  <p class="text-2xl font-bold text-ink mt-1">{{ stats.avgMinutes }}<span class="text-base font-medium text-muted">dtk</span></p>
+                </div>
+                <div class="w-12 h-12 rounded-full bg-iconbg flex items-center justify-center">
+                  <svg class="w-6 h-6 text-primary" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                </div>
+              </div>
+              <p class="text-xs text-success font-semibold">Target &lt; 90 detik</p>
+            </div>
+          </div>
+
+          <!-- Mid grid -->
+          <div class="grid grid-cols-1 lg:grid-cols-5 gap-6">
+            <div class="lg:col-span-2 bg-surface rounded-lg shadow-card border border-line p-6">
+              <div class="flex items-center justify-between mb-4">
+                <h3 class="font-bold text-ink">Status Pemeriksaan</h3>
+                <span class="text-xs font-semibold text-primary bg-iconbg px-3 py-1 rounded-full">Hari ini</span>
+              </div>
+              <div class="flex items-center justify-center py-4">
+                <div class="relative w-40 h-40">
+                  <svg viewBox="0 0 36 36" class="w-full h-full -rotate-90">
+                    <circle cx="18" cy="18" r="15.9" fill="none" stroke="#E0E5F2" stroke-width="4" />
+                    <circle
+                      cx="18" cy="18" r="15.9" fill="none"
+                      :stroke="fitRate >= 70 ? '#05CD99' : '#EE5D50'"
+                      stroke-width="4" stroke-linecap="round"
+                      :stroke-dasharray="fitRate + ' ' + (100 - fitRate)"
+                    />
+                  </svg>
+                  <div class="absolute inset-0 flex flex-col items-center justify-center">
+                    <span class="text-2xl font-bold text-ink">{{ fitRate }}%</span>
+                    <span class="text-xs text-muted">FIT rate</span>
+                  </div>
+                </div>
+              </div>
+              <div class="space-y-2 text-sm">
+                <div class="flex items-center justify-between">
+                  <span class="flex items-center gap-2"><span class="w-2.5 h-2.5 rounded-full bg-success"></span> FIT</span>
+                  <span class="font-semibold text-ink">{{ stats.fitToday }}</span>
+                </div>
+                <div class="flex items-center justify-between">
+                  <span class="flex items-center gap-2"><span class="w-2.5 h-2.5 rounded-full bg-danger"></span> UNFIT</span>
+                  <span class="font-semibold text-ink">{{ stats.unfitToday }}</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="lg:col-span-3 bg-surface rounded-lg shadow-card border border-line p-6">
+              <div class="flex items-center justify-between mb-6">
+                <h3 class="font-bold text-ink">Tren Mingguan Fit vs Unfit</h3>
+                <span class="text-xs text-muted">7 hari terakhir</span>
+              </div>
+              <div class="flex items-end justify-between gap-3 h-44">
+                <div v-for="d in stats.weekly" :key="d.label" class="flex-1 flex flex-col items-center gap-2 h-full justify-end">
+                  <div class="w-full flex flex-col items-center justify-end gap-0.5 h-full">
+                    <div class="w-full max-w-[28px] bg-danger rounded-t-sm" :style="{ height: (d.unfit / maxBar) * 70 + '%' }" :title="'Unfit ' + d.unfit"></div>
+                    <div class="w-full max-w-[28px] bg-primary rounded-b-sm" :style="{ height: (d.fit / maxBar) * 70 + '%' }" :title="'Fit ' + d.fit"></div>
+                  </div>
+                  <span class="text-xs text-muted">{{ d.label }}</span>
+                </div>
+              </div>
+              <div class="flex gap-4 mt-4 text-xs text-muted">
+                <span class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-sm bg-primary"></span> Fit</span>
+                <span class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-sm bg-danger"></span> Unfit</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Recent -->
+          <div class="bg-surface rounded-lg shadow-card border border-line overflow-hidden">
+            <div class="flex items-center justify-between p-5 border-b border-line">
+              <h3 class="font-bold text-ink">Pemeriksaan Terakhir</h3>
+              <button class="text-sm text-primary font-semibold min-touch px-3" @click="$emit('navigate', 'monitoring')">Lihat semua →</button>
+            </div>
+            <div class="overflow-x-auto">
+              <table class="w-full text-sm">
+                <thead>
+                  <tr class="text-left text-xs text-muted border-b border-line">
+                    <th class="px-5 py-3 font-medium">Waktu</th>
+                    <th class="px-5 py-3 font-medium">Karyawan</th>
+                    <th class="px-5 py-3 font-medium">Tensi</th>
+                    <th class="px-5 py-3 font-medium">Suhu</th>
+                    <th class="px-5 py-3 font-medium">SPO2</th>
+                    <th class="px-5 py-3 font-medium">Status</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr v-for="r in recent" :key="r.id" class="border-b border-line last:border-0 hover:bg-canvas">
+                    <td class="px-5 py-3 text-muted whitespace-nowrap">{{ fmtTime(r.timestamp) }}</td>
+                    <td class="px-5 py-3">
+                      <span class="font-medium text-ink">{{ r.employeeName }}</span>
+                      <span class="block text-xs text-muted">{{ r.employeeId }}</span>
+                    </td>
+                    <td class="px-5 py-3 text-ink">{{ r.systolic }}/{{ r.diastolic }}</td>
+                    <td class="px-5 py-3" :class="r.temperature >= 37.5 ? 'text-danger font-semibold' : 'text-ink'">{{ r.temperature }}°C</td>
+                    <td class="px-5 py-3 text-ink">{{ r.spo2 }}%</td>
+                    <td class="px-5 py-3">
+                      <span
+                        class="px-3 py-1 rounded-full text-xs font-semibold"
+                        :class="r.status === 'FIT' ? 'bg-success/10 text-success' : 'bg-danger/10 text-danger'"
+                      >{{ r.status }}</span>
+                    </td>
+                  </tr>
+                  <tr v-if="!recent.length">
+                    <td colspan="6" class="px-5 py-8 text-center text-muted">Belum ada data.</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      `,
+    };
+
+    /* ========== PEMERIKSAAN ========== */
+    const Q_LABELS = [
+      'Apakah hari ini Anda merasa sehat dan siap bekerja?',
+      'Apakah Anda mengalami pusing, demam, sesak, nyeri, atau keluhan lain yang mengganggu pekerjaan?',
+      'Apakah Anda merasa mengantuk, kelelahan, atau kurang konsentrasi?',
+      'Apakah Anda sedang mengonsumsi obat yang dapat menyebabkan kantuk atau menurunkan konsentrasi?',
+      'Apakah Anda memiliki cedera atau keterbatasan gerak?',
+      'Apakah Anda merasa aman untuk bekerja di ketinggian?',
+      'Apakah Anda merasa aman mengemudikan kendaraan?',
+      'Apakah Anda merasa aman mengoperasikan crane, forklift, atau alat berat?',
+      'Apakah Anda merasa aman bekerja dekat mesin bergerak?',
+      'Apakah Anda merasa mampu melakukan pekerjaan yang membutuhkan konsentrasi tinggi?',
+    ];
+    const Q_KEYS = Q_LABELS.map((_, i) => 'q' + (i + 1));
+
+    const PemeriksaanPage = {
+      props: ['employees', 'onSave'],
+      emits: ['navigate'],
+      setup(props, { emit }) {
+        const query = ref('');
+        const queryResults = ref([]);
+        const selected = ref(null);
+        const noMatch = ref(false);
+        let debounceTimer = null;
+
+        const addOpen = ref(false);
+        const addingEmp = ref(false);
+        const addError = ref('');
+        const addForm = reactive({ name: '', unit: '', dob: '', heightCm: null });
+        const unitOptions = computed(() => {
+          const set = {};
+          (props.employees || []).forEach((e) => { if (e.unit) set[e.unit] = true; });
+          return Object.keys(set);
+        });
+        const todayStr = new Date().toISOString().slice(0, 10);
+
+        const qOpen = ref(false);
+        const qAnswers = reactive({});
+        let saveTs = null;
+        function resetQ() {
+          Q_KEYS.forEach((k) => { qAnswers[k] = ''; });
+          qOpen.value = false;
+        }
+        resetQ();
+        const qAnswered = computed(() => Q_KEYS.filter((k) => qAnswers[k] === 'ya' || qAnswers[k] === 'tidak').length);
+        const qComplete = computed(() => qAnswered.value === Q_KEYS.length);
+
+        function closeQ() {
+          qOpen.value = false;
+        }
+
+        const devices = reactive({
+          tensi: { connected: false, loading: false, label: 'Tensi Meter', error: '', note: '', name: '', simulated: false, measuring: false, progress: 0, remain: 0, measured: false },
+          thermo: { connected: false, loading: false, label: 'Termometer', error: '', note: '', name: '', simulated: false, measuring: false, progress: 0, remain: 0, measured: false },
+          spo2: { connected: false, loading: false, label: 'SPO2', error: '', note: '', name: '', simulated: false, measuring: false, progress: 0, remain: 0, measured: false },
+          scale: { connected: false, loading: false, label: 'Timbangan', error: '', note: '', name: '', simulated: false, measuring: false, progress: 0, remain: 0, measured: false },
+        });
+
+        const fillSource = reactive({
+          systolic: null, diastolic: null, temperature: null,
+          spo2: null, heartRate: null, weightKg: null,
+        });
+
+        const btLog = ref(getBtLog());
+        const logOpen = ref(false);
+
+        function onBtLog(e) {
+          btLog.value = (e.detail || []).slice();
+        }
+
+        function fmtLogTime(iso) {
+          const d = new Date(iso);
+          if (isNaN(d)) return '-';
+          return d.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+        }
+
+        function srcTagRaw(field) {
+          if (manualFields[field]) return 'manual';
+          return fillSource[field] || '';
+        }
+
+        function srcTag(field) {
+          const r = srcTagRaw(field);
+          return r === 'alat' ? 'Alat' : r === 'simulasi' ? 'Simulasi' : r === 'manual' ? 'Manual' : '';
+        }
+
+        function srcTagCls(field) {
+          const r = srcTagRaw(field);
+          if (r === 'alat') return 'bg-iconbg text-primary';
+          if (r === 'simulasi') return 'bg-danger/10 text-danger';
+          if (r === 'manual') return 'bg-canvas text-muted border border-line';
+          return '';
+        }
+
+        const form = reactive({
+          systolic: null, diastolic: null, temperature: null,
+          spo2: null, heartRate: null, weightKg: null,
+          manualMode: false, reason: '',
+        });
+
+        const manualFields = reactive({
+          systolic: false, diastolic: false, temperature: false,
+          spo2: false, heartRate: false, weightKg: false,
+        });
+
+        const saving = ref(false);
+
+        const bmi = computed(() => {
+          if (!selected.value) return null;
+          return calcBmi(form.weightKg, selected.value.heightCm);
+        });
+
+        const status = computed(() => calcStatus(form.systolic, form.temperature));
+
+        const alerts = computed(() => {
+          const list = [];
+          if (form.systolic != null && (form.systolic > 140 || form.diastolic > 90)) {
+            list.push('Tekanan darah tinggi: ' + form.systolic + '/' + form.diastolic);
+          }
+          if (form.temperature != null && form.temperature > 37.5) {
+            list.push('Suhu di atas normal: ' + form.temperature + '°C');
+          }
+          if (form.spo2 != null && form.spo2 < 95) {
+            list.push('SPO2 rendah: ' + form.spo2 + '%');
+          }
+          return list;
+        });
+
+        const canSave = computed(() => {
+          if (!selected.value) return false;
+          return (
+            form.systolic != null && form.diastolic != null &&
+            form.temperature != null && form.spo2 != null &&
+            form.weightKg != null &&
+            form.systolic > 0 && form.diastolic > 0 &&
+            form.temperature > 0 && form.spo2 > 0 &&
+            form.weightKg > 0
+          );
+        });
+
+        function onSearch() {
+          if (debounceTimer) clearTimeout(debounceTimer);
+          debounceTimer = setTimeout(() => {
+            const q = query.value.trim().toLowerCase();
+            if (!q) { queryResults.value = []; noMatch.value = false; return; }
+            const res = (props.employees || [])
+              .filter((e) => e.name.toLowerCase().includes(q) || e.id.toLowerCase().includes(q))
+              .slice(0, 6);
+            queryResults.value = res;
+            noMatch.value = res.length === 0;
+          }, 300);
+        }
+
+        function pick(emp) {
+          selected.value = emp;
+          query.value = '';
+          queryResults.value = [];
+          noMatch.value = false;
+        }
+
+        function clearSelection() {
+          selected.value = null;
+          query.value = '';
+          queryResults.value = [];
+          noMatch.value = false;
+          resetForm();
+        }
+
+        function openAdd() {
+          const q = query.value.trim();
+          addForm.name = /^K-\d+$/i.test(q) ? '' : q;
+          addForm.unit = '';
+          addForm.dob = '';
+          addForm.heightCm = null;
+          addError.value = '';
+          addOpen.value = true;
+        }
+
+        function closeAdd() {
+          addOpen.value = false;
+          addError.value = '';
+        }
+
+        async function submitEmployee() {
+          const name = String(addForm.name || '').trim();
+          const unit = String(addForm.unit || '').trim();
+          const dob = String(addForm.dob || '').trim();
+          if (!name) { addError.value = 'Nama lengkap wajib diisi'; return; }
+          if (!unit) { addError.value = 'Unit wajib diisi'; return; }
+          if (!dob) { addError.value = 'Tanggal lahir wajib diisi'; return; }
+          if (!/^\d{4}-\d{2}-\d{2}$/.test(dob) || isNaN(Date.parse(dob)) || Date.parse(dob) > Date.now()) {
+            addError.value = 'Tanggal lahir tidak valid';
+            return;
+          }
+          if (addForm.heightCm === null || addForm.heightCm === '' || addForm.heightCm === undefined) {
+            addError.value = 'Tinggi badan wajib diisi';
+            return;
+          }
+          const h = Number(addForm.heightCm);
+          if (!isFinite(h)) { addError.value = 'Tinggi badan bukan angka yang valid'; return; }
+          if (h < 50 || h > 250) { addError.value = 'Tinggi badan di luar rentang 50-250'; return; }
+          addingEmp.value = true;
+          addError.value = '';
+          const res = await apiPost('addEmployee', { name, unit, dob, heightCm: h });
+          addingEmp.value = false;
+          if (res.ok && res.employee) {
+            window.dispatchEvent(new CustomEvent('sf2w:employee-added', { detail: res.employee }));
+            window.dispatchEvent(new CustomEvent('sf2w:toast', { detail: { message: 'Karyawan berhasil ditambahkan.', type: 'success' } }));
+            addOpen.value = false;
+            pick(res.employee);
+          } else {
+            addError.value = res.message || 'Gagal menambah karyawan';
+          }
+        }
+
+        function resetForm() {
+          btClearMeasure();
+          resetQ();
+          saveTs = null;
+          form.systolic = null; form.diastolic = null; form.temperature = null;
+          form.spo2 = null; form.heartRate = null; form.weightKg = null;
+          form.manualMode = false; form.reason = '';
+          Object.keys(manualFields).forEach((k) => { manualFields[k] = false; });
+          Object.keys(fillSource).forEach((k) => { fillSource[k] = null; });
+          Object.keys(devices).forEach((k) => {
+            devices[k].connected = false;
+            devices[k].error = '';
+            devices[k].note = '';
+            devices[k].name = '';
+            devices[k].simulated = false;
+            devices[k].measuring = false;
+            devices[k].measured = false;
+            devices[k].progress = 0;
+            devices[k].remain = 0;
+            if (k !== 'scale') btDisconnect(k);
+          });
+          if (BT.scale && BT.scale.characteristic && !BT.scale.simulated) {
+            devices.scale.connected = true;
+            devices.scale.name = BT.scale.deviceName + ' (auto)';
+            devices.scale.note = 'Terhubung otomatis — bobot masuk langsung saat dikirim.';
+          } else if (BTPaired.scale) {
+            devices.scale.note = 'Auto-reconnect aktif — menunggu perangkat aktif.';
+          }
+        }
+
+        async function connect(key) {
+          const d = devices[key];
+          d.loading = true;
+          d.error = '';
+          d.note = '';
+          const res = await bluetoothConnect(key);
+          d.loading = false;
+          if (res.ok) {
+            d.connected = true;
+            d.simulated = !!res.simulated;
+            d.name = res.device || d.label;
+            d.note = res.simulated ? (res.message || '') : '';
+            d.measured = false;
+            d.progress = 0;
+            d.measuring = false;
+            const toastType = res.simulated ? 'error' : 'success';
+            window.dispatchEvent(new CustomEvent('sf2w:toast', { detail: { message: res.message || (d.label + ' terhubung: ' + d.name), type: toastType } }));
+          } else if (res.cancelled) {
+            d.connected = false;
+            d.simulated = false;
+            d.name = '';
+            d.note = '';
+            d.error = res.message;
+            window.dispatchEvent(new CustomEvent('sf2w:toast', { detail: { message: d.label + ': ' + res.message, type: 'error' } }));
+          } else {
+            d.connected = false;
+            d.simulated = false;
+            d.name = '';
+            d.error = res.reconnecting ? '' : (res.message || 'Gagal — gunakan Input Manual');
+            d.note = res.reconnecting ? (res.message || 'Menunggu perangkat aktif (auto-reconnect)…') : '';
+            if (!res.reconnecting && !res.rechoose) {
+              manualFields[key === 'tensi' ? 'systolic' : key === 'thermo' ? 'temperature' : key === 'spo2' ? 'spo2' : 'weightKg'] = true;
+              form.manualMode = true;
+            }
+            window.dispatchEvent(new CustomEvent('sf2w:toast', {
+              detail: {
+                message: res.reconnecting
+                  ? (d.label + ': ' + d.note)
+                  : d.label + ' gagal — ' + (res.message || 'input manual aktif'),
+                type: 'error',
+              },
+            }));
+          }
+        }
+
+        function applyMeasurement(key, values, simulated) {
+          if (!values) return;
+          const src = simulated ? 'simulasi' : 'alat';
+          if (key === 'tensi') {
+            if (values.systolic != null) { form.systolic = values.systolic; manualFields.systolic = false; fillSource.systolic = src; }
+            if (values.diastolic != null) { form.diastolic = values.diastolic; manualFields.diastolic = false; fillSource.diastolic = src; }
+            if (values.heartRate != null && !manualFields.heartRate) { form.heartRate = values.heartRate; fillSource.heartRate = src; }
+          } else if (key === 'thermo') {
+            if (values.temperature != null) { form.temperature = values.temperature; manualFields.temperature = false; fillSource.temperature = src; }
+          } else if (key === 'spo2') {
+            if (values.spo2 != null) { form.spo2 = values.spo2; manualFields.spo2 = false; fillSource.spo2 = src; }
+          } else if (key === 'scale') {
+            if (values.weightKg != null) { form.weightKg = values.weightKg; manualFields.weightKg = false; fillSource.weightKg = src; }
+          }
+        }
+
+        function anyMeasuring() {
+          return Object.keys(devices).some((k) => devices[k].measuring);
+        }
+
+        async function startMeasurement(key) {
+          const d = devices[key];
+          if (!selected.value) {
+            window.dispatchEvent(new CustomEvent('sf2w:toast', { detail: { message: 'Pilih karyawan terlebih dahulu.', type: 'error' } }));
+            return;
+          }
+          if (!d.connected || d.measuring) return;
+          if (anyMeasuring()) {
+            window.dispatchEvent(new CustomEvent('sf2w:toast', { detail: { message: 'Masih ada pengukuran yang berjalan.', type: 'error' } }));
+            return;
+          }
+          d.measuring = true;
+          d.progress = 0;
+          d.remain = 0;
+          d.measured = false;
+          d.error = '';
+          try {
+            const res = await bluetoothMeasure(key, selected.value, (pct, remain) => {
+              d.progress = pct;
+              d.remain = remain || 0;
+            });
+            if (res.cancelled) {
+              d.progress = 0;
+              return;
+            }
+            if (res.ok && res.values) {
+              applyMeasurement(key, res.values, !!res.simulated);
+              d.measured = true;
+              d.simulated = !!res.simulated;
+              d.error = '';
+              window.dispatchEvent(new CustomEvent('sf2w:toast', {
+                detail: res.simulated
+                  ? { message: d.label + ' — data SIMULASI terisi ke form (bukan hasil alat).', type: 'error' }
+                  : { message: d.label + ' — data asli dari alat terisi ke form.', type: 'success' },
+              }));
+            } else {
+              d.measured = false;
+              d.simulated = false;
+              d.error = res.reason || 'Tidak ada data dari alat — ulangi atau gunakan input manual.';
+              window.dispatchEvent(new CustomEvent('sf2w:toast', {
+                detail: { message: d.label + ': ' + d.error, type: 'error' },
+              }));
+            }
+          } catch (err) {
+            d.measured = false;
+            d.error = (err && err.message) || 'Pengukuran gagal';
+            window.dispatchEvent(new CustomEvent('sf2w:toast', { detail: { message: d.label + ': ' + d.error, type: 'error' } }));
+          } finally {
+            d.measuring = false;
+            d.remain = 0;
+            d.progress = d.measured ? 100 : 0;
+          }
+        }
+
+        function onDisconnected(e) {
+          const key = e.detail && e.detail.key;
+          if (!key || !devices[key]) return;
+          devices[key].connected = false;
+          devices[key].simulated = false;
+          devices[key].measuring = false;
+          devices[key].progress = 0;
+          devices[key].name = '';
+          devices[key].error = 'Terputus';
+          devices[key].note = '';
+          window.dispatchEvent(new CustomEvent('sf2w:toast', { detail: { message: e.detail.label + ' terputus.', type: 'error' } }));
+        }
+
+        let autoToastTimer = null;
+
+        function onAutoValue(e) {
+          const det = e.detail || {};
+          if (det.key !== 'scale' || !det.values || !selected.value) return;
+          const d = devices.scale;
+          if (d.measuring) return;
+          applyMeasurement('scale', det.values, false);
+          d.measured = true;
+          d.simulated = false;
+          d.error = '';
+          if (autoToastTimer) clearTimeout(autoToastTimer);
+          autoToastTimer = setTimeout(() => {
+            autoToastTimer = null;
+            window.dispatchEvent(new CustomEvent('sf2w:toast', {
+              detail: { message: 'Bobot dari timbangan tersimpan: ' + det.values.weightKg + ' kg.', type: 'success' },
+            }));
+          }, 2500);
+        }
+
+        function onReconnected(e) {
+          const key = e.detail && e.detail.key;
+          if (!key || !devices[key]) return;
+          const d = devices[key];
+          d.connected = true;
+          d.simulated = false;
+          d.name = (e.detail.name || d.label) + ' (auto)';
+          d.error = '';
+          d.note = 'Terhubung otomatis — bobot masuk langsung saat dikirim.';
+          d.measuring = false;
+          d.progress = 0;
+          window.dispatchEvent(new CustomEvent('sf2w:toast', {
+            detail: { message: d.label + ' terhubung otomatis — siap menerima data.', type: 'success' },
+          }));
+        }
+
+        function onReconnFailed(e) {
+          const key = e.detail && e.detail.key;
+          if (!key || !devices[key]) return;
+          devices[key].connected = false;
+          devices[key].error = '';
+          devices[key].note = 'Perangkat tidak dapat dihubungi — ' + ((e.detail && e.detail.message) || 'periksa alat');
+        }
+
+        function fillMockValues(key) {
+          if (key === 'tensi') { form.systolic = 125; form.diastolic = 80; }
+          if (key === 'thermo') form.temperature = 36.6;
+          if (key === 'spo2') { form.spo2 = 98; form.heartRate = 72; }
+          if (key === 'scale') form.weightKg = selected.value ? Math.round(selected.value.heightCm * 0.43 * 10) / 10 : 70;
+        }
+
+        function enableManual(key) {
+          if (devices[key].measuring) btClearMeasure();
+          devices[key].connected = false;
+          devices[key].error = '';
+          devices[key].note = '';
+          devices[key].name = '';
+          devices[key].simulated = false;
+          devices[key].measuring = false;
+          devices[key].measured = false;
+          devices[key].progress = 0;
+          btDisconnect(key);
+          btUnpair(key);
+          if (key === 'tensi') { manualFields.systolic = true; manualFields.diastolic = true; }
+          if (key === 'thermo') manualFields.temperature = true;
+          if (key === 'spo2') { manualFields.spo2 = true; manualFields.heartRate = true; }
+          if (key === 'scale') manualFields.weightKg = true;
+          form.manualMode = true;
+        }
+
+        function deviceChip(key) {
+          const d = devices[key];
+          if (d.loading) return { text: 'Menghubungkan…', cls: 'text-primary' };
+          if (d.measuring) return { text: d.progress + '%', cls: 'text-primary' };
+          if (d.connected && d.measured) return { text: d.simulated ? 'Terukur (sim)' : 'Terukur', cls: 'text-success' };
+          if (d.connected && d.error) return { text: 'Gagal', cls: 'text-danger' };
+          if (d.connected) return { text: d.simulated ? 'Simulasi' : 'Terhubung', cls: 'text-success' };
+          if (d.error) return { text: 'Terputus', cls: 'text-danger' };
+          return { text: 'Belum', cls: 'text-muted' };
+        }
+
+        async function submitSave() {
+          if (!canSave.value || saving.value) return;
+          if (!qComplete.value) {
+            qOpen.value = true;
+            return;
+          }
+          saving.value = true;
+          const duty = readDuty();
+          const isManual = Object.values(manualFields).some(Boolean);
+          const isSimulated = Object.keys(devices).some((k) => devices[k].measured && devices[k].simulated);
+          const isBluetooth = Object.keys(devices).some((k) => devices[k].measured && !devices[k].simulated);
+          const source = isManual ? 'Manual' : (isSimulated ? 'Simulasi' : (isBluetooth ? 'Bluetooth' : 'Manual'));
+          const answers = {};
+          Q_KEYS.forEach((k) => { answers[k] = qAnswers[k]; });
+          if (!saveTs) saveTs = new Date().toISOString();
+          const payload = {
+            timestamp: saveTs,
+            employeeId: selected.value.id,
+            employeeName: selected.value.name,
+            systolic: Number(form.systolic),
+            diastolic: Number(form.diastolic),
+            temperature: Number(form.temperature),
+            spo2: Number(form.spo2),
+            heartRate: Number(form.heartRate),
+            weightKg: Number(form.weightKg),
+            heightCm: selected.value.heightCm,
+            bmi: bmi.value,
+            status: status.value,
+            source: source,
+            reason: isManual
+              ? (form.reason || 'Input manual tanpa alasan')
+              : (isSimulated ? 'Pengukuran simulasi (GATT tidak tersedia)' : ''),
+            examiner: duty ? duty.name : '',
+            examinerRole: duty ? duty.role : '',
+            answers: answers,
+          };
+          try {
+            const ok = await props.onSave(payload);
+            if (ok !== false) resetForm();
+          } finally {
+            saving.value = false;
+          }
+        }
+
+        function onPicked(e) {
+          pick(e.detail);
+        }
+
+        onMounted(() => {
+          window.addEventListener('sf2w:pick-employee', onPicked);
+          window.addEventListener('sf2w:bt-disconnected', onDisconnected);
+          window.addEventListener('sf2w:bt-log', onBtLog);
+          window.addEventListener('sf2w:bt-auto', onAutoValue);
+          window.addEventListener('sf2w:bt-connected', onReconnected);
+          window.addEventListener('sf2w:bt-reconn-failed', onReconnFailed);
+          btRestorePair('scale').then((dev) => {
+            if (!dev || devices.scale.connected) return;
+            devices.scale.note = 'Perangkat pernah dipasangkan — auto-reconnect aktif.';
+            btStartReconnect('scale');
+          }).catch(() => {});
+        });
+
+        onUnmounted(() => {
+          btClearMeasure();
+          if (autoToastTimer) { clearTimeout(autoToastTimer); autoToastTimer = null; }
+          Object.keys(devices).forEach((k) => btStopReconnect(k));
+          window.removeEventListener('sf2w:pick-employee', onPicked);
+          window.removeEventListener('sf2w:bt-disconnected', onDisconnected);
+          window.removeEventListener('sf2w:bt-log', onBtLog);
+          window.removeEventListener('sf2w:bt-auto', onAutoValue);
+          window.removeEventListener('sf2w:bt-connected', onReconnected);
+          window.removeEventListener('sf2w:bt-reconn-failed', onReconnFailed);
+        });
+
+        watch(
+          () => [form.systolic, form.temperature],
+          () => {}
+        );
+
+        return {
+          query, queryResults, selected, devices, form, manualFields, saving,
+          bmi, status, alerts, canSave, fillSource, srcTag, srcTagCls,
+          btLog, logOpen, fmtLogTime,
+          onSearch, pick, clearSelection, connect, enableManual, deviceChip,
+          startMeasurement, submitSave, fmtDate,
+          noMatch, addOpen, addError, addForm, addingEmp, unitOptions, todayStr,
+          openAdd, closeAdd, submitEmployee,
+          Q_LABELS, qOpen, qAnswers, qAnswered, qComplete, closeQ,
+        };
+      },
+      template: `
+        <div class="space-y-6">
+          <div>
+            <h2 class="text-xl font-bold text-ink">Pemeriksaan Kesehatan</h2>
+            <p class="text-sm text-muted">Cari karyawan, hubungkan alat, tinjau data, lalu simpan status Fit to Work.</p>
+          </div>
+
+          <!-- Search employee -->
+          <div class="bg-surface rounded-lg shadow-card border border-line p-6">
+            <label class="block text-sm font-medium text-ink mb-2">Karyawan</label>
+            <div class="relative">
+              <input
+                v-model="query"
+                @input="onSearch"
+                type="search"
+                placeholder="Ketik ID atau nama…"
+                class="w-full min-touch px-4 py-3 rounded-md border border-line bg-surface text-ink placeholder-muted focus:outline-none focus:border-primary"
+                :disabled="!!selected"
+              />
+              <div v-if="!selected && (queryResults.length || noMatch)" class="absolute top-full mt-2 left-0 right-0 bg-surface border border-line rounded-md shadow-card overflow-hidden z-20">
+                <button
+                  v-for="emp in queryResults"
+                  :key="emp.id"
+                  class="w-full text-left px-4 py-3 hover:bg-canvas min-touch"
+                  @click="pick(emp)"
+                >
+                  <span class="block text-sm font-medium text-ink">{{ emp.name }}</span>
+                  <span class="block text-xs text-muted">{{ emp.id }} · {{ emp.unit }}<span v-if="emp.shift"> · Shift {{ emp.shift }}</span></span>
+                </button>
+                <button
+                  v-if="noMatch"
+                  class="w-full text-left px-4 py-3 hover:bg-canvas min-touch border-t border-line flex items-start gap-3"
+                  @click="openAdd"
+                >
+                  <span class="w-7 h-7 shrink-0 rounded-full bg-primary/10 text-primary flex items-center justify-center font-bold">+</span>
+                  <span>
+                    <span class="block text-sm font-semibold text-primary">Tambah data karyawan</span>
+                    <span class="block text-xs text-muted">“{{ query }}” belum terdaftar — isi data untuk menambahkannya</span>
+                  </span>
+                </button>
+              </div>
+            </div>
+
+            <div v-if="selected" class="mt-4 flex flex-wrap items-center gap-4 p-4 bg-canvas rounded-md border border-line">
+              <div class="w-12 h-12 rounded-full bg-primary text-white font-bold flex items-center justify-center">
+                {{ selected.name.split(' ').map(w => w[0]).slice(0,2).join('') }}
+              </div>
+              <div class="flex-1 min-w-[160px]">
+                <p class="font-semibold text-ink">{{ selected.name }}</p>
+                <p class="text-xs text-muted">{{ selected.id }} · {{ selected.unit }} · {{ selected.age }} th · {{ selected.heightCm }} cm</p>
+              </div>
+              <button class="min-touch px-4 py-2 rounded-md border border-line text-sm text-ink hover:bg-surface" @click="clearSelection">Ganti</button>
+            </div>
+          </div>
+
+          <!-- Devices -->
+          <div class="bg-surface rounded-lg shadow-card border border-line p-6">
+            <div class="flex items-center justify-between mb-4">
+              <h3 class="font-bold text-ink">Perangkat Bluetooth</h3>
+              <span class="text-xs text-muted">Chrome / Edge · Web Bluetooth</span>
+            </div>
+            <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
+              <div v-for="(d, key) in devices" :key="key" class="border border-line rounded-lg p-4 bg-canvas transition-shadow hover:shadow-soft">
+                <div class="flex items-center justify-between mb-2">
+                  <p class="text-sm font-semibold text-ink">{{ d.label }}</p>
+                  <span class="text-xs font-medium" :class="deviceChip(key).cls">{{ deviceChip(key).text }}</span>
+                </div>
+                <p v-if="d.name" class="text-xs text-success font-medium mb-2 truncate" :title="d.name">✓ {{ d.name }}</p>
+                <div class="flex gap-2">
+                  <button
+                    class="flex-1 min-touch rounded-md text-sm font-semibold text-white disabled:opacity-60"
+                    :class="d.connected ? 'bg-success' : 'bg-primary'"
+                    :disabled="d.loading || d.connected || !selected"
+                    @click="connect(key)"
+                  >
+                    <span v-if="d.loading" class="spinner align-middle mr-1"></span>
+                    {{ d.connected ? 'Terhubung' : 'Connect' }}
+                  </button>
+                  <button
+                    class="min-touch px-3 rounded-md border border-line text-xs font-medium text-ink bg-surface"
+                    title="Input manual"
+                    @click="enableManual(key)"
+                  >Manual</button>
+                </div>
+
+                <button
+                  v-if="d.connected && !d.measuring"
+                  class="w-full min-touch mt-2 rounded-md text-sm font-semibold text-white disabled:opacity-60"
+                  :class="d.measured ? 'bg-success' : 'bg-primary'"
+                  :disabled="!selected"
+                  @click="startMeasurement(key)"
+                >
+                  <span v-if="d.measured">&#8635; </span>{{ d.measured ? 'Ukur Ulang' : (d.error ? 'Coba Lagi' : 'Mulai Pengukuran') }}
+                </button>
+
+                <div v-if="d.measuring" class="mt-3">
+                  <div class="flex items-center justify-between text-xs mb-1">
+                    <span class="text-primary font-medium">Mengukur…<span v-if="d.remain"> sisa {{ d.remain }} dtk</span></span>
+                    <span class="text-muted">{{ d.progress }}%</span>
+                  </div>
+                  <div class="w-full h-1.5 rounded-full bg-line overflow-hidden">
+                    <div class="h-full rounded-full bg-primary transition-all duration-300" :style="{ width: d.progress + '%' }"></div>
+                  </div>
+                </div>
+
+                <p v-if="d.measured && !d.measuring" class="text-xs text-success font-medium mt-2">
+                  ✓ Data {{ d.simulated ? 'simulasi' : 'hasil ukur' }} terisi otomatis ke form.
+                </p>
+                <p v-if="d.note" class="text-xs text-danger mt-2">⚠ {{ d.note }}</p>
+                <p v-if="d.error" class="text-xs text-danger mt-2">{{ d.error }}</p>
+              </div>
+            </div>
+            <p class="text-xs text-muted mt-3">Alur: <strong>Connect</strong> → <strong>Mulai Pengukuran</strong> → data terisi ke form (bukan otomatis tersimpan). Simulasi hanya dipakai bila GATT/karakteristik tidak tersedia; jika alat tidak mengirim data valid dalam 120 detik akan muncul error — tidak ada angka palsu.</p>
+
+            <div class="mt-3 border border-line rounded-md bg-canvas">
+              <button class="w-full flex items-center justify-between px-4 py-3 text-sm font-medium text-ink" @click="logOpen = !logOpen">
+                <span>Detail log Bluetooth <span v-if="btLog.length" class="text-muted">({{ btLog.length }} entri)</span></span>
+                <span class="text-muted">{{ logOpen ? '▲' : '▼' }}</span>
+              </button>
+              <div v-if="logOpen" class="border-t border-line px-4 py-3 space-y-2 max-h-64 overflow-y-auto">
+                <p v-if="!btLog.length" class="text-xs text-muted">Belum ada aktivitas Bluetooth.</p>
+                <div v-for="(l, i) in btLog" :key="i" class="text-xs font-mono leading-relaxed">
+                  <span class="text-muted">{{ fmtLogTime(l.t) }}</span>
+                  <span class="text-primary font-semibold">[{{ l.who }}]</span>
+                  <span class="text-muted">({{ l.act }})</span>
+                  <span class="text-ink break-all"> {{ l.msg }}</span>
+                </div>
+                <p class="text-[11px] text-muted pt-1">Salin log ini jika perlu laporan ke teknisi / bengkel alat.</p>
+              </div>
+            </div>
+          </div>
+
+          <!-- Medical form -->
+          <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <div class="lg:col-span-2 bg-surface rounded-lg shadow-card border border-line p-6">
+              <h3 class="font-bold text-ink mb-4">Data Medis</h3>
+
+              <div v-if="alerts.length" class="mb-4 space-y-2">
+                <div v-for="(a, i) in alerts" :key="i" class="flex items-center gap-2 px-4 py-3 rounded-md bg-danger/10 border border-danger/30 text-sm text-danger font-medium">
+                  <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" d="M12 9v4m0 4h.01M4.93 19h14.14a2 2 0 001.74-3L13.74 4a2 2 0 00-3.48 0L3.19 16a2 2 0 001.74 3z"/></svg>
+                  {{ a }}
+                </div>
+              </div>
+
+              <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label class="block text-sm font-medium text-ink mb-1.5">Sistolik (mmHg)
+                    <span v-if="srcTag('systolic')" class="ml-1 inline-block px-2 py-0.5 rounded-full text-[10px] font-bold align-middle" :class="srcTagCls('systolic')">{{ srcTag('systolic') }}</span>
+                  </label>
+                  <input v-model.number="form.systolic" type="number" min="0" placeholder="120"
+                    class="w-full min-touch px-4 py-3 rounded-md border border-line bg-surface focus:outline-none focus:border-primary"
+                    :class="manualFields.systolic ? 'border-dashed border-primary' : ''" />
+                </div>
+                <div>
+                  <label class="block text-sm font-medium text-ink mb-1.5">Diastolik (mmHg)
+                    <span v-if="srcTag('diastolic')" class="ml-1 inline-block px-2 py-0.5 rounded-full text-[10px] font-bold align-middle" :class="srcTagCls('diastolic')">{{ srcTag('diastolic') }}</span>
+                  </label>
+                  <input v-model.number="form.diastolic" type="number" min="0" placeholder="80"
+                    class="w-full min-touch px-4 py-3 rounded-md border border-line bg-surface focus:outline-none focus:border-primary"
+                    :class="manualFields.diastolic ? 'border-dashed border-primary' : ''" />
+                </div>
+                <div>
+                  <label class="block text-sm font-medium text-ink mb-1.5">Suhu (°C)
+                    <span v-if="srcTag('temperature')" class="ml-1 inline-block px-2 py-0.5 rounded-full text-[10px] font-bold align-middle" :class="srcTagCls('temperature')">{{ srcTag('temperature') }}</span>
+                  </label>
+                  <input v-model.number="form.temperature" type="number" step="0.1" min="0" placeholder="36.5"
+                    class="w-full min-touch px-4 py-3 rounded-md border border-line bg-surface focus:outline-none focus:border-primary"
+                    :class="manualFields.temperature ? 'border-dashed border-primary' : ''" />
+                </div>
+                <div>
+                  <label class="block text-sm font-medium text-ink mb-1.5">SPO2 (%)
+                    <span v-if="srcTag('spo2')" class="ml-1 inline-block px-2 py-0.5 rounded-full text-[10px] font-bold align-middle" :class="srcTagCls('spo2')">{{ srcTag('spo2') }}</span>
+                  </label>
+                  <input v-model.number="form.spo2" type="number" min="0" max="100" placeholder="98"
+                    class="w-full min-touch px-4 py-3 rounded-md border border-line bg-surface focus:outline-none focus:border-primary"
+                    :class="manualFields.spo2 ? 'border-dashed border-primary' : ''" />
+                </div>
+                <div>
+                  <label class="block text-sm font-medium text-ink mb-1.5">Heart Rate (bpm)
+                    <span v-if="srcTag('heartRate')" class="ml-1 inline-block px-2 py-0.5 rounded-full text-[10px] font-bold align-middle" :class="srcTagCls('heartRate')">{{ srcTag('heartRate') }}</span>
+                  </label>
+                  <input v-model.number="form.heartRate" type="number" min="0" placeholder="72"
+                    class="w-full min-touch px-4 py-3 rounded-md border border-line bg-surface focus:outline-none focus:border-primary"
+                    :class="manualFields.heartRate ? 'border-dashed border-primary' : ''" />
+                </div>
+                <div>
+                  <label class="block text-sm font-medium text-ink mb-1.5">Berat Badan (kg)
+                    <span v-if="srcTag('weightKg')" class="ml-1 inline-block px-2 py-0.5 rounded-full text-[10px] font-bold align-middle" :class="srcTagCls('weightKg')">{{ srcTag('weightKg') }}</span>
+                  </label>
+                  <input v-model.number="form.weightKg" type="number" step="0.1" min="0" placeholder="70"
+                    class="w-full min-touch px-4 py-3 rounded-md border border-line bg-surface focus:outline-none focus:border-primary"
+                    :class="manualFields.weightKg ? 'border-dashed border-primary' : ''" />
+                </div>
+              </div>
+
+              <div v-if="form.manualMode" class="mt-4">
+                <label class="block text-sm font-medium text-ink mb-1.5">Alasan Input Manual (Audit Trail)</label>
+                <input v-model="form.reason" type="text" placeholder="mis. Baterai alat habis"
+                  class="w-full min-touch px-4 py-3 rounded-md border border-dashed border-primary bg-iconbg/40 focus:outline-none focus:border-primary" />
+              </div>
+            </div>
+
+            <!-- Summary -->
+            <div class="bg-surface rounded-lg shadow-card border border-line p-6 h-fit">
+              <h3 class="font-bold text-ink mb-4">Ringkasan</h3>
+              <div class="space-y-3 text-sm">
+                <div class="flex justify-between">
+                  <span class="text-muted">Karyawan</span>
+                  <span class="font-medium text-ink text-right">{{ selected ? selected.name : '—' }}</span>
+                </div>
+                <div class="flex justify-between">
+                  <span class="text-muted">Tensi</span>
+                  <span class="font-medium text-ink"
+                    :class="(form.systolic > 140 || form.diastolic > 90) ? 'text-danger' : ''">
+                    {{ form.systolic && form.diastolic ? form.systolic + '/' + form.diastolic : '—' }}
+                  </span>
+                </div>
+                <div class="flex justify-between">
+                  <span class="text-muted">Suhu</span>
+                  <span class="font-medium" :class="form.temperature >= 37.5 ? 'text-danger' : 'text-ink'">
+                    {{ form.temperature ? form.temperature + '°C' : '—' }}
+                  </span>
+                </div>
+                <div class="flex justify-between">
+                  <span class="text-muted">SPO2</span>
+                  <span class="font-medium text-ink">{{ form.spo2 ? form.spo2 + '%' : '—' }}</span>
+                </div>
+                <div class="flex justify-between">
+                  <span class="text-muted">BMI</span>
+                  <span class="font-medium text-ink">{{ bmi != null ? bmi : '—' }}</span>
+                </div>
+                <hr class="border-line" />
+                <div class="flex justify-between items-center">
+                  <span class="text-muted">Status</span>
+                  <span
+                    v-if="status"
+                    class="px-4 py-1.5 rounded-full text-sm font-bold"
+                    :class="status === 'FIT' ? 'bg-success/10 text-success' : 'bg-danger/10 text-danger'"
+                  >{{ status }}</span>
+                  <span v-else class="text-muted">—</span>
+                </div>
+              </div>
+
+              <p class="text-xs text-muted mt-4 leading-relaxed">
+                Aturan: Sistolik &lt; 140 <strong>dan</strong> Suhu &lt; 37,5°C = <strong>FIT</strong>. Selain itu = UNFIT.
+              </p>
+
+              <button
+                class="w-full min-touch mt-5 rounded-md text-white font-semibold disabled:opacity-50 flex items-center justify-center gap-2"
+                :class="status === 'UNFIT' ? 'bg-danger' : 'bg-primary'"
+                :disabled="!canSave || saving"
+                @click="submitSave"
+              >
+                <span v-if="saving" class="spinner"></span>
+                {{ saving ? 'Menyimpan…' : 'Simpan Pemeriksaan' }}
+              </button>
+              <p v-if="!selected" class="text-xs text-muted text-center mt-2">Pilih karyawan terlebih dahulu.</p>
+            </div>
+          </div>
+
+          <!-- Modal tambah karyawan -->
+          <div v-if="addOpen" class="fixed inset-0 z-40 flex items-end sm:items-center justify-center bg-black/40 p-4" @click.self="closeAdd">
+            <div class="w-full max-w-md bg-surface rounded-xl shadow-lift border border-line p-6 space-y-4" role="dialog" aria-label="Tambah Data Karyawan">
+              <div>
+                <h3 class="text-lg font-bold text-ink">Tambah Data Karyawan</h3>
+                <p class="text-xs text-muted">Data karyawan baru disimpan ke daftar karyawan.</p>
+              </div>
+              <div>
+                <label class="block text-sm font-medium text-ink mb-1.5">Nama lengkap</label>
+                <input v-model="addForm.name" type="text" placeholder="mis. Agus Salim"
+                  class="w-full min-touch px-4 py-3 rounded-md border border-line bg-surface text-ink placeholder-muted focus:outline-none focus:border-primary" />
+              </div>
+              <div>
+                <label class="block text-sm font-medium text-ink mb-1.5">Unit</label>
+                <input v-model="addForm.unit" type="text" list="unit-options" placeholder="mis. Produksi"
+                  class="w-full min-touch px-4 py-3 rounded-md border border-line bg-surface text-ink placeholder-muted focus:outline-none focus:border-primary" />
+                <datalist id="unit-options">
+                  <option v-for="u in unitOptions" :key="u" :value="u"></option>
+                </datalist>
+              </div>
+              <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label class="block text-sm font-medium text-ink mb-1.5">Tanggal lahir</label>
+                  <input v-model="addForm.dob" type="date" :max="todayStr"
+                    class="w-full min-touch px-4 py-3 rounded-md border border-line bg-surface text-ink focus:outline-none focus:border-primary" />
+                </div>
+                <div>
+                  <label class="block text-sm font-medium text-ink mb-1.5">Tinggi badan (cm)</label>
+                  <input v-model.number="addForm.heightCm" type="number" min="50" max="250" placeholder="170"
+                    class="w-full min-touch px-4 py-3 rounded-md border border-line bg-surface text-ink placeholder-muted focus:outline-none focus:border-primary" />
+                </div>
+              </div>
+              <p v-if="addError" class="text-sm text-danger font-medium">{{ addError }}</p>
+              <div class="flex gap-2 pt-1">
+                <button class="flex-1 min-touch rounded-md border border-line text-sm font-semibold text-ink hover:bg-canvas"
+                  :disabled="addingEmp" @click="closeAdd">Batal</button>
+                <button class="flex-1 min-touch rounded-md bg-primary text-white text-sm font-semibold disabled:opacity-60"
+                  :disabled="addingEmp" @click="submitEmployee">
+                  <span v-if="addingEmp" class="spinner align-middle mr-1"></span>{{ addingEmp ? 'Menyimpan…' : 'Simpan Karyawan' }}
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Modal kuesioner sebelum simpan pemeriksaan -->
+          <div v-if="qOpen" class="fixed inset-0 z-40 flex items-end sm:items-center justify-center bg-black/40 p-4" @click.self="closeQ">
+            <div class="w-full max-w-xl bg-surface rounded-xl shadow-lift border border-line p-6 space-y-4 max-h-[85vh] overflow-y-auto" role="dialog" aria-label="Kuesioner Kesehatan">
+              <div>
+                <h3 class="text-lg font-bold text-ink">Kuesioner Kesehatan</h3>
+                <p class="text-xs text-muted">Jawab 10 pertanyaan berikut sebelum menyimpan pemeriksaan — <span class="font-semibold text-primary">{{ qAnswered }}/10 terjawab</span>.</p>
+              </div>
+              <div v-for="(label, i) in Q_LABELS" :key="i" class="pb-3 border-b border-line last:border-0 last:pb-0">
+                <p class="text-sm text-ink mb-2"><span class="text-primary font-semibold mr-1">{{ i + 1 }}.</span>{{ label }}</p>
+                <div class="flex gap-2">
+                  <button
+                    class="flex-1 min-touch rounded-md text-sm font-semibold border transition-colors"
+                    :class="qAnswers['q' + (i + 1)] === 'ya' ? 'bg-primary text-white border-primary' : 'border-line text-ink hover:bg-canvas'"
+                    @click="qAnswers['q' + (i + 1)] = 'ya'"
+                  >Ya</button>
+                  <button
+                    class="flex-1 min-touch rounded-md text-sm font-semibold border transition-colors"
+                    :class="qAnswers['q' + (i + 1)] === 'tidak' ? 'bg-danger text-white border-danger' : 'border-line text-ink hover:bg-canvas'"
+                    @click="qAnswers['q' + (i + 1)] = 'tidak'"
+                  >Tidak</button>
+                </div>
+              </div>
+              <div class="flex gap-2 pt-1 sticky bottom-0 bg-surface">
+                <button class="flex-1 min-touch rounded-md border border-line text-sm font-semibold text-ink hover:bg-canvas"
+                  :disabled="saving" @click="closeQ">Kembali</button>
+                <button
+                  class="flex-1 min-touch rounded-md text-white text-sm font-semibold disabled:opacity-50"
+                  :class="status === 'UNFIT' ? 'bg-danger' : 'bg-primary'"
+                  :disabled="!qComplete || saving"
+                  @click="submitSave"
+                >
+                  <span v-if="saving" class="spinner align-middle mr-1"></span>{{ saving ? 'Menyimpan…' : 'Simpan Pemeriksaan' }}
+                </button>
+              </div>
+              <p v-if="!qComplete" class="text-xs text-muted text-center">Semua pertanyaan wajib dijawab.</p>
+            </div>
+          </div>
+        </div>
+      `,
+    };
+
+    /* ========== MONITORING ========== */
+    const MonitoringPage = {
+      props: ['records'],
+      emits: ['refresh'],
+      setup(props) {
+        const from = ref('');
+        const to = ref('');
+        const statusFilter = ref('ALL');
+        const page = ref(1);
+        const pageSize = 50;
+
+        const filtered = computed(() => {
+          let rows = (props.records || []).slice();
+          if (from.value) {
+            const f = new Date(from.value + 'T00:00:00').getTime();
+            rows = rows.filter((r) => new Date(r.timestamp).getTime() >= f);
+          }
+          if (to.value) {
+            const t = new Date(to.value + 'T23:59:59').getTime();
+            rows = rows.filter((r) => new Date(r.timestamp).getTime() <= t);
+          }
+          if (statusFilter.value !== 'ALL') {
+            rows = rows.filter((r) => r.status === statusFilter.value);
+          }
+          return rows;
+        });
+
+        const visible = computed(() => filtered.value.slice(0, pageSize));
+
+        function exportCSV() {
+          const csv = toCSV(filtered.value);
+          const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = 'fit2work-pemeriksaan.csv';
+          a.click();
+          URL.revokeObjectURL(url);
+          showToast('Export CSV berhasil (' + filtered.value.length + ' baris).');
+        }
+
+        function clearFilter() {
+          from.value = '';
+          to.value = '';
+          statusFilter.value = 'ALL';
+        }
+
+        return { from, to, statusFilter, filtered, visible, exportCSV, clearFilter, fmtTime };
+      },
+      template: `
+        <div class="space-y-6">
+          <div class="flex flex-wrap items-end justify-between gap-3">
+            <div>
+              <h2 class="text-xl font-bold text-ink">Monitoring HSSE</h2>
+              <p class="text-sm text-muted">Riwayat pemeriksaan kelaikan kerja — maks. 50 record terbaru.</p>
+            </div>
+            <div class="flex gap-2">
+              <button class="min-touch px-4 py-2.5 rounded-md border border-line text-sm font-medium text-ink bg-surface hover:bg-canvas" @click="$emit('refresh')">Muat ulang</button>
+              <button class="min-touch px-4 py-2.5 rounded-md bg-primary text-white text-sm font-semibold" @click="exportCSV">Export CSV</button>
+            </div>
+          </div>
+
+          <!-- Filters -->
+          <div class="bg-surface rounded-lg shadow-card border border-line p-5 flex flex-wrap gap-4 items-end">
+            <div>
+              <label class="block text-xs font-medium text-muted mb-1">Dari tanggal</label>
+              <input v-model="from" type="date" class="min-touch px-3 py-2.5 rounded-md border border-line bg-surface text-sm focus:outline-none focus:border-primary" />
+            </div>
+            <div>
+              <label class="block text-xs font-medium text-muted mb-1">Sampai tanggal</label>
+              <input v-model="to" type="date" class="min-touch px-3 py-2.5 rounded-md border border-line bg-surface text-sm focus:outline-none focus:border-primary" />
+            </div>
+            <div>
+              <label class="block text-xs font-medium text-muted mb-1">Status</label>
+              <select v-model="statusFilter" class="min-touch px-3 py-2.5 rounded-md border border-line bg-surface text-sm focus:outline-none focus:border-primary">
+                <option value="ALL">Semua</option>
+                <option value="FIT">FIT</option>
+                <option value="UNFIT">UNFIT</option>
+              </select>
+            </div>
+            <button class="min-touch px-4 py-2.5 rounded-md border border-line text-sm text-ink hover:bg-canvas" @click="clearFilter">Reset</button>
+            <p class="text-sm text-muted ml-auto">{{ filtered.length }} data</p>
+          </div>
+
+          <!-- Table -->
+          <div class="bg-surface rounded-lg shadow-card border border-line overflow-hidden">
+            <div class="overflow-x-auto">
+              <table class="w-full text-sm">
+                <thead>
+                  <tr class="text-left text-xs text-muted border-b border-line bg-canvas">
+                    <th class="px-5 py-3 font-medium">Timestamp</th>
+                    <th class="px-5 py-3 font-medium">Karyawan</th>
+                    <th class="px-5 py-3 font-medium">Tensi</th>
+                    <th class="px-5 py-3 font-medium">Suhu</th>
+                    <th class="px-5 py-3 font-medium">SPO2</th>
+                    <th class="px-5 py-3 font-medium">BMI</th>
+                    <th class="px-5 py-3 font-medium">Sumber</th>
+                    <th class="px-5 py-3 font-medium">Status</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr v-for="r in visible" :key="r.id" class="border-b border-line last:border-0 hover:bg-canvas">
+                    <td class="px-5 py-3 text-muted whitespace-nowrap">{{ fmtTime(r.timestamp) }}</td>
+                    <td class="px-5 py-3">
+                      <span class="font-medium text-ink">{{ r.employeeName }}</span>
+                      <span class="block text-xs text-muted">{{ r.employeeId }}</span>
+                      <span v-if="r.reason" class="block text-xs text-danger mt-0.5">Alasan: {{ r.reason }}</span>
+                    </td>
+                    <td class="px-5 py-3" :class="(r.systolic > 140 || r.diastolic > 90) ? 'text-danger font-semibold' : 'text-ink'">
+                      {{ r.systolic }}/{{ r.diastolic }}
+                    </td>
+                    <td class="px-5 py-3" :class="r.temperature >= 37.5 ? 'text-danger font-semibold' : 'text-ink'">{{ r.temperature }}°C</td>
+                    <td class="px-5 py-3 text-ink">{{ r.spo2 }}%</td>
+                    <td class="px-5 py-3 text-ink">{{ r.bmi }}</td>
+                    <td class="px-5 py-3">
+                      <span
+                        class="px-2.5 py-1 rounded-full text-xs font-medium"
+                        :class="r.source === 'Manual' ? 'bg-danger/10 text-danger' : 'bg-iconbg text-primary'"
+                      >{{ r.source }}</span>
+                    </td>
+                    <td class="px-5 py-3">
+                      <span
+                        class="px-3 py-1 rounded-full text-xs font-semibold"
+                        :class="r.status === 'FIT' ? 'bg-success/10 text-success' : 'bg-danger/10 text-danger'"
+                      >{{ r.status }}</span>
+                    </td>
+                  </tr>
+                  <tr v-if="!visible.length">
+                    <td colspan="8" class="px-5 py-10 text-center text-muted">Tidak ada data pada filter ini.</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      `,
+    };
+
+    /* ========== PENGATURAN ========== */
+    const PengaturanPage = {
+      setup() {
+        const officers = ref(MOCK.dutyOfficers.slice());
+        const selectedId = ref(sessionStorage.getItem('sf2w_duty') || '');
+        const editName = ref('');
+        const editRole = ref('');
+
+        onMounted(async () => {
+          const res = await apiPost('listDutyOfficers', {});
+          if (res.ok && res.officers) {
+            officers.value = res.officers;
+            const overrides = {};
+            res.officers.forEach((o) => {
+              overrides[o.id] = { name: o.name, role: o.role };
+            });
+            sessionStorage.setItem('sf2w_duty_overrides', JSON.stringify(overrides));
+            window.dispatchEvent(new CustomEvent('sf2w:duty-changed', { detail: { id: selectedId.value } }));
+            syncEdit();
+          }
+        });
+
+        const selected = computed(() => {
+          const o = officers.value.find((x) => x.id === selectedId.value);
+          return o ? Object.assign({}, o) : null;
+        });
+
+        function syncEdit() {
+          const o = officers.value.find((x) => x.id === selectedId.value);
+          editName.value = o ? o.name : '';
+          editRole.value = o ? o.role : '';
+        }
+        syncEdit();
+
+        function select(id) {
+          selectedId.value = id;
+          sessionStorage.setItem('sf2w_duty', id);
+          syncEdit();
+          const o = officers.value.find((x) => x.id === id);
+          window.dispatchEvent(new CustomEvent('sf2w:duty-changed', { detail: { id: id } }));
+          showToast(o ? 'Petugas jaga: ' + o.name : 'Petugas jaga dipilih.');
+        }
+
+        async function saveOfficer() {
+          const o = officers.value.find((x) => x.id === selectedId.value);
+          if (!o) return;
+          const trimmedName = (editName.value || '').trim();
+          
+          const res = await apiPost('saveDutyOfficer', { id: o.id, name: trimmedName, role: editRole.value });
+          if (res.ok && res.officer) {
+            const i = officers.value.findIndex(x => x.id === o.id);
+            if (i >= 0) officers.value.splice(i, 1, res.officer);
+            
+            let overrides = {};
+            try { overrides = JSON.parse(sessionStorage.getItem('sf2w_duty_overrides') || '{}') || {}; } catch(e){}
+            overrides[o.id] = { name: res.officer.name, role: res.officer.role };
+            sessionStorage.setItem('sf2w_duty_overrides', JSON.stringify(overrides));
+            
+            window.dispatchEvent(new CustomEvent('sf2w:duty-changed', { detail: { id: o.id } }));
+            syncEdit();
+            showToast(trimmedName ? 'Data petugas diperbarui.' : 'Data dikembalikan ke asli.');
+          } else {
+            showToast(res.message || 'Gagal menyimpan perubahan.', 'error');
+            syncEdit();
+          }
+        }
+
+        function clearSelection() {
+          selectedId.value = '';
+          sessionStorage.removeItem('sf2w_duty');
+          editName.value = '';
+          editRole.value = '';
+          window.dispatchEvent(new CustomEvent('sf2w:duty-changed', { detail: { id: '' } }));
+          showToast('Pilihan petugas jaga dikosongkan.');
+        }
+
+        return { officers, selectedId, selected, editName, editRole, select, saveOfficer, clearSelection };
+      },
+      template: `
+        <div class="space-y-6">
+          <div>
+            <h2 class="text-xl font-bold text-ink">Pengaturan</h2>
+            <p class="text-sm text-muted">Pilih dokter atau perawat yang jaga untuk shift berjalan.</p>
+          </div>
+
+          <div class="bg-surface rounded-lg shadow-card border border-line p-5 max-w-2xl">
+            <div class="flex flex-wrap items-start justify-between gap-3 mb-4">
+              <div>
+                <p class="text-xs font-semibold text-muted uppercase tracking-wider">Dokter / Perawat Jaga</p>
+                <p class="text-sm text-muted mt-1">Petugas yang dipilih bertanggung jawab atas pemeriksaan shift ini.</p>
+              </div>
+              <button
+                v-if="selected"
+                class="min-touch px-3 py-2 rounded-md border border-line text-sm font-medium text-danger hover:bg-canvas"
+                @click="clearSelection"
+              >
+                Kosongkan
+              </button>
+            </div>
+
+            <div class="space-y-2">
+              <button
+                v-for="o in officers"
+                :key="o.id"
+                class="w-full flex items-center gap-3 p-3 rounded-lg border text-left min-touch transition"
+                :class="selectedId === o.id ? 'border-primary bg-iconbg' : 'border-line hover:bg-canvas'"
+                @click="select(o.id)"
+              >
+                <span
+                  class="w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold shrink-0"
+                  :class="selectedId === o.id ? 'bg-primary text-white' : 'bg-canvas text-muted'"
+                >{{ o.initials }}</span>
+                <span class="min-w-0 flex-1">
+                  <span class="block text-sm font-semibold text-ink truncate">{{ o.name }}</span>
+                  <span class="block text-xs text-muted">{{ o.role }} · {{ o.id }}</span>
+                </span>
+                <svg
+                  v-if="selectedId === o.id"
+                  class="w-5 h-5 text-primary shrink-0"
+                  fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"
+                ><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
+              </button>
+            </div>
+
+            <div v-if="selected" class="mt-4 rounded-md bg-canvas border border-line px-4 py-3 space-y-3">
+              <div class="flex items-center gap-3">
+                <span class="w-2 h-2 rounded-full bg-success shrink-0"></span>
+                <p class="text-sm text-ink">
+                  Sedang jaga: <span class="font-semibold">{{ selected.name }}</span>
+                  <span class="text-muted">({{ selected.role }})</span>
+                </p>
+              </div>
+              <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label class="block text-xs font-medium text-muted mb-1" for="duty-name">Nama (bisa disunting)</label>
+                  <input
+                    id="duty-name"
+                    v-model="editName"
+                    @change="saveOfficer"
+                    type="text"
+                    placeholder="Kosongkan untuk nama asli"
+                    class="w-full min-touch px-3 py-2.5 rounded-md border border-line bg-surface text-sm text-ink placeholder-muted focus:outline-none focus:border-primary"
+                  />
+                </div>
+                <div>
+                  <label class="block text-xs font-medium text-muted mb-1" for="duty-role">Jabatan</label>
+                  <select
+                    id="duty-role"
+                    v-model="editRole"
+                    @change="saveOfficer"
+                    class="w-full min-touch px-3 py-2.5 rounded-md border border-line bg-surface text-sm text-ink focus:outline-none focus:border-primary"
+                  >
+                    <option value="Dokter">Dokter</option>
+                    <option value="Perawat">Perawat</option>
+                  </select>
+                </div>
+              </div>
+              <p class="text-xs text-muted mt-1">Nama hasil sunting menggantikan tampilan daftar, kartu jaga, dan header. Kosongkan nama lalu pindah fokus untuk mengembalikan data asli dari server.</p>
+            </div>
+
+            <p class="text-xs text-muted mt-4">Tersimpan di database (Google Sheets). Pilihan jaga otomatis tersimpan selama sesi shift berjalan (sessionStorage).</p>
+          </div>
+        </div>
+      `,
+    };
+
+    /* ========== MOUNT ========== */
+    const app = createApp(App);
+    app.component('ToastHost', ToastHost);
+    app.component('LoginPage', LoginPage);
+    app.component('AppShell', AppShell);
+    app.component('DashboardPage', DashboardPage);
+    app.component('PemeriksaanPage', PemeriksaanPage);
+    app.component('MonitoringPage', MonitoringPage);
+    app.component('PengaturanPage', PengaturanPage);
+
+    window.addEventListener('sf2w:toast', (e) => showToast(e.detail.message, e.detail.type));
+    if (!location.hash) location.hash = '#/login';
+
+    app.mount('#app');
+  </script>
+</body>
+</html>
