@@ -220,17 +220,33 @@
       }
 
       const endpoint = window.GAS_ENDPOINT || '';
-      try {
-        const res = await fetch(endpoint, {
-          method: 'POST',
-          redirect: 'follow',
-          headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-          body: JSON.stringify({ action, data, apiKey: window.GAS_API_KEY || '' }),
-        });
-        return await res.json();
-      } catch (e) {
-        return { ok: false, message: 'Koneksi ke server gagal — periksa internet lalu coba lagi.' };
+      const payload = JSON.stringify({ action, data, apiKey: window.GAS_API_KEY || '' });
+      const RETRY_OK = ['login','listEmployees','listRecords','listDutyOfficers','stats','saveRecord','saveEmployeeCard','saveDutyOfficer'];
+      const maxTries = RETRY_OK.includes(action) ? 3 : 1;
+      let lastErr = 'Koneksi ke server gagal — periksa internet lalu coba lagi.';
+      
+      for (let attempt = 1; attempt <= maxTries; attempt++) {
+        try {
+          const controller = new AbortController();
+          const timeoutId = setTimeout(() => controller.abort(), 30000);
+          const res = await fetch(endpoint, {
+            method: 'POST',
+            redirect: 'follow',
+            headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+            body: payload,
+            signal: controller.signal,
+          });
+          clearTimeout(timeoutId);
+          if (!res.ok) throw new Error('HTTP ' + res.status);
+          return await res.json();
+        } catch (e) {
+          lastErr = (e.name === 'AbortError') ? 'Koneksi ke server terputus (waktu habis) — coba lagi.' : 'Koneksi ke server gagal — periksa internet lalu coba lagi.';
+          if (attempt < maxTries) {
+            await new Promise((r) => setTimeout(r, attempt === 1 ? 1000 : 2500));
+          }
+        }
       }
+      return { ok: false, message: lastErr };
     }
 
     function readDuty() {
@@ -1361,10 +1377,11 @@
             sessionStorage.setItem('sf2w_user', JSON.stringify(res.user));
             showToast('Login berhasil. Selamat datang.');
             location.hash = '#/dashboard';
-            return true;
+            return { ok: true };
           }
-          showToast(res.message || 'Login gagal', 'error');
-          return false;
+          const msg = res.message || 'Login gagal';
+          showToast(msg, 'error');
+          return { ok: false, message: msg };
         }
 
         function doLogout() {
@@ -1488,8 +1505,10 @@
           }
           loading.value = true;
           error.value = '';
-          const ok = await props.onLogin(pin.value);
-          if (!ok) error.value = 'PIN salah. Coba lagi.';
+          const res = await props.onLogin(pin.value);
+          if (!res.ok) {
+            error.value = (res.message === 'PIN salah') ? 'PIN salah. Coba lagi.' : (res.message || 'Login gagal.');
+          }
           loading.value = false;
           pin.value = '';
         }

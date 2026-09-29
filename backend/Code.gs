@@ -103,14 +103,14 @@ function migrateEmployees_(sh) {
 
   const idxId = header.findIndex(function(h) { return String(h) === 'id'; });
   const idxName = header.findIndex(function(h) { return String(h) === 'name'; });
-  if (idxId === -1 || idxName === -1) return; // Unrecognized layout
+  const idxCard = header.findIndex(function(h) { return String(h) === 'cardUid'; });
+  if (idxId === -1 || idxName === -1 || idxCard === -1) return; // Unrecognized layout or missing card
 
   const idxUnit = header.findIndex(function(h) { return String(h) === 'unit'; });
   const idxShift = header.findIndex(function(h) { return String(h) === 'shift'; });
   const idxAge = header.findIndex(function(h) { return String(h) === 'age'; });
   const idxHeight = header.findIndex(function(h) { return String(h) === 'heightCm'; });
   const idxDob = header.findIndex(function(h) { return String(h) === 'dob'; });
-  const idxCard = header.findIndex(function(h) { return String(h) === 'cardUid'; });
 
   const dataRange = sh.getRange(1, 1, lastRow, 8);
   const rows = dataRange.getValues();
@@ -156,7 +156,33 @@ function sheet_(name, headers) {
   if (!sh) sh = ss.insertSheet(name);
   if (name === 'Employees') migrateEmployees_(sh);
   ensureHeaders_(sh, headers);
+  if (name === 'Employees') {
+    ensureCardColText_(sh);
+    cleanEmptyEmployeeRows_(sh);
+  }
   return sh;
+}
+
+function ensureCardColText_(sh) {
+  const last = sh.getLastRow();
+  if (last < 2) return;
+  const fmt = sh.getRange(2, 2).getNumberFormat();
+  if (fmt !== '@') sh.getRange(2, 2, last - 1, 1).setNumberFormat('@');
+}
+
+function cleanEmptyEmployeeRows_(sh) {
+  const last = sh.getLastRow();
+  if (last < 3) return;
+  const cols = sh.getLastColumn();
+  if (cols < 1) return;
+  const vals = sh.getRange(2, 1, last - 1, cols).getValues();
+  let boundary = 1;
+  for (let i = 0; i < vals.length; i++) {
+    if (vals[i].some(function(v) { return v !== '' && v !== null && v !== undefined; })) {
+      boundary = i + 2;
+    }
+  }
+  if (last > boundary) sh.deleteRows(boundary + 1, last - boundary);
 }
 
 function coerce_(v) {
@@ -177,7 +203,12 @@ function readRows_(sh, headers) {
   return values.map(function (row) {
     const obj = {};
     headers.forEach(function (h, i) {
-      obj[h] = coerce_(row[i]);
+      if (h === 'Nomor kartu RF' || h === 'cardUid') {
+        const v = row[i];
+        obj[h] = (v === '' || v === null || v === undefined) ? null : String(v);
+      } else {
+        obj[h] = coerce_(row[i]);
+      }
     });
     return obj;
   });
@@ -554,9 +585,9 @@ function actionSaveEmployeeCard_(data) {
     
     if (rowIndex === -1) return { ok: false, message: 'Karyawan tidak ditemukan' };
     
-    employee.cardUid = cardUid === '' ? null : cardUid;
-    employee.age = employee.dob ? ageFromDob_(employee.dob, new Date()) : null;
-    sh.getRange(rowIndex, 2).setValue(cardUid);
+      employee.cardUid = cardUid === '' ? null : cardUid;
+      employee.age = employee.dob ? ageFromDob_(employee.dob, new Date()) : null;
+      sh.getRange(rowIndex, 2).setNumberFormat('@').setValue(cardUid);
     
     return { ok: true, employee: employee };
   } finally {
