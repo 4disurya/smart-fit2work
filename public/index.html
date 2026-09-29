@@ -87,14 +87,14 @@
         { id: 'NUR-03', name: 'Ns. Siti Rahma, S.Kep', role: 'Perawat', initials: 'SR' },
       ],
       employees: [
-        { id: 'K-1001', name: 'Budi Santoso', unit: 'HSSE', shift: 'Pagi', age: 34, heightCm: 172 },
-        { id: 'K-1002', name: 'Siti Rahma', unit: 'Produksi', shift: 'Pagi', age: 28, heightCm: 160 },
-        { id: 'K-1003', name: 'Andi Wijaya', unit: 'Maintenance', shift: 'Siang', age: 41, heightCm: 168 },
-        { id: 'K-1004', name: 'Dewi Anggraini', unit: 'Logistik', shift: 'Pagi', age: 31, heightCm: 158 },
-        { id: 'K-1005', name: 'Rudi Hartono', unit: 'Produksi', shift: 'Malam', age: 45, heightCm: 175 },
-        { id: 'K-1006', name: 'Lestari Putri', unit: 'HRD', shift: 'Pagi', age: 26, heightCm: 162 },
-        { id: 'K-1007', name: 'Hendra Gunawan', unit: 'Maintenance', shift: 'Siang', age: 38, heightCm: 170 },
-        { id: 'K-1008', name: 'Maya Sari', unit: 'Logistik', shift: 'Pagi', age: 29, heightCm: 155 },
+        { id: 'K-1001', cardUid: 'A1B2C3D4', name: 'Budi Santoso', unit: 'HSSE', grup: 'A', dob: '1992-01-01', heightCm: 172, age: 34 },
+        { id: 'K-1002', cardUid: 'E5F6G7H8', name: 'Siti Rahma', unit: 'Produksi', grup: 'A', dob: '1998-01-01', heightCm: 160, age: 28 },
+        { id: 'K-1003', cardUid: null, name: 'Andi Wijaya', unit: 'Maintenance', grup: 'B', dob: '1985-01-01', heightCm: 168, age: 41 },
+        { id: 'K-1004', cardUid: null, name: 'Dewi Anggraini', unit: 'Logistik', grup: 'A', dob: '1995-01-01', heightCm: 158, age: 31 },
+        { id: 'K-1005', cardUid: null, name: 'Rudi Hartono', unit: 'Produksi', grup: 'C', dob: '1981-01-01', heightCm: 175, age: 45 },
+        { id: 'K-1006', cardUid: null, name: 'Lestari Putri', unit: 'HRD', grup: 'A', dob: '2000-01-01', heightCm: 162, age: 26 },
+        { id: 'K-1007', cardUid: null, name: 'Hendra Gunawan', unit: 'Maintenance', grup: 'B', dob: '1988-01-01', heightCm: 170, age: 38 },
+        { id: 'K-1008', cardUid: null, name: 'Maya Sari', unit: 'Logistik', grup: 'A', dob: '1997-01-01', heightCm: 155, age: 29 },
       ],
       records: [
         { id: 'TRX-20260924-001', timestamp: '2026-09-24T06:12:00', employeeId: 'K-1001', employeeName: 'Budi Santoso', systolic: 128, diastolic: 82, temperature: 36.6, spo2: 98, heartRate: 74, weightKg: 74, heightCm: 172, bmi: 25.0, status: 'FIT', source: 'Bluetooth', reason: '' },
@@ -154,14 +154,17 @@
           const p = String(data.dob || '').split('-').map(Number);
           let age = now.getFullYear() - p[0];
           if (now.getMonth() + 1 < p[1] || (now.getMonth() + 1 === p[1] && now.getDate() < p[2])) age--;
+          const grup = String(data.grup || '').trim().toUpperCase();
+          if (!/^[A-D]$/.test(grup)) return { ok: false, message: 'Grup tugas wajib dipilih (A, B, C, atau D)' };
           const emp = {
             id: 'K-' + String(maxNum + 1).padStart(4, '0'),
+            cardUid: null,
             name: String(data.name || '').trim(),
             unit: String(data.unit || '').trim(),
-            shift: '',
-            age: age,
-            heightCm: Number(data.heightCm),
+            grup: grup,
             dob: data.dob,
+            heightCm: Number(data.heightCm),
+            age: age,
           };
           MOCK.employees.push(emp);
           return { ok: true, employee: emp };
@@ -195,6 +198,23 @@
           if (!newRole) newRole = orig.role;
           MOCK._dutyOverrides[data.id] = { name: newName, role: newRole };
           return { ok: true, officer: Object.assign({}, orig, { name: newName, role: newRole }) };
+        }
+        if (action === 'saveEmployeeCard') {
+          const employeeId = String(data.employeeId || '').trim();
+          let cardUid = String(data.cardUid || '');
+          if (!employeeId) return { ok: false, message: 'ID karyawan wajib diisi' };
+          if (cardUid !== '') {
+            cardUid = cardUid.replace(/[-:\s]/g, '').toUpperCase();
+            if (!/^[A-Z0-9]{4,32}$/.test(cardUid)) return { ok: false, message: 'Format UID tidak valid (4-32 karakter huruf/angka)' };
+          }
+          const empIdx = MOCK.employees.findIndex((e) => e.id === employeeId);
+          if (empIdx === -1) return { ok: false, message: 'Karyawan tidak ditemukan' };
+          if (cardUid !== '') {
+            const dup = MOCK.employees.find((e) => e.id !== employeeId && String(e.cardUid || '').toUpperCase() === cardUid);
+            if (dup) return { ok: false, message: 'Kartu sudah terdaftar untuk ' + dup.name + ' (' + dup.id + ')' };
+          }
+          MOCK.employees[empIdx].cardUid = cardUid === '' ? null : cardUid;
+          return { ok: true, employee: MOCK.employees[empIdx] };
         }
         return { ok: true };
       }
@@ -1568,7 +1588,7 @@
               return;
             }
             searchResults.value = MOCK.employees
-              .filter((e) => e.name.toLowerCase().includes(q) || e.id.toLowerCase().includes(q))
+              .filter((e) => e.name.toLowerCase().includes(q) || e.id.toLowerCase().includes(q) || (e.cardUid && e.cardUid.toLowerCase().includes(q)))
               .slice(0, 5);
           }, 300);
         }
@@ -1933,10 +1953,122 @@
         const noMatch = ref(false);
         let debounceTimer = null;
 
+        const scan = reactive({ active: false, mode: 'select', uid: '', remain: 0 });
+        let scanTimer = null;
+        let scanInterval = null;
+        
+        let lastKeyTime = 0;
+        let passiveBuf = '';
+        
+        function normalizeUid(raw) {
+          return String(raw).replace(/[-:\s]/g, '').toUpperCase();
+        }
+
+        function startScan(mode) {
+          scan.active = true;
+          scan.mode = mode;
+          scan.uid = '';
+          scan.remain = 15;
+          if (scanTimer) clearTimeout(scanTimer);
+          if (scanInterval) clearInterval(scanInterval);
+          scanInterval = setInterval(() => {
+            scan.remain--;
+            if (scan.remain <= 0) cancelScan();
+          }, 1000);
+          scanTimer = setTimeout(() => { cancelScan(); }, 15000);
+        }
+
+        function cancelScan() {
+          scan.active = false;
+          scan.uid = '';
+          if (scanTimer) { clearTimeout(scanTimer); scanTimer = null; }
+          if (scanInterval) { clearInterval(scanInterval); scanInterval = null; }
+        }
+
+        async function commitScan(rawUid) {
+          const uid = normalizeUid(rawUid);
+          cancelScan();
+          if (!/^[A-Z0-9]{4,32}$/.test(uid)) {
+            window.dispatchEvent(new CustomEvent('sf2w:toast', { detail: { message: 'Format UID tidak valid (4-32 karakter)', type: 'error' } }));
+            return;
+          }
+          if (scan.mode === 'select') {
+            const emp = (props.employees || []).find((e) => String(e.cardUid || '').toUpperCase() === uid);
+            if (emp) {
+              pick(emp);
+              window.dispatchEvent(new CustomEvent('sf2w:toast', { detail: { message: 'Kartu terbaca — ' + emp.name + ' dipilih.', type: 'success' } }));
+            } else {
+              window.dispatchEvent(new CustomEvent('sf2w:toast', { detail: { message: 'Kartu belum terdaftar (' + uid + ') — pilih karyawan lalu klik Daftarkan Kartu.', type: 'error' } }));
+            }
+          } else if (scan.mode === 'register') {
+            if (!selected.value) return;
+            const res = await apiPost('saveEmployeeCard', { employeeId: selected.value.id, cardUid: uid });
+            if (res.ok && res.employee) {
+              selected.value = res.employee;
+              window.dispatchEvent(new CustomEvent('sf2w:employee-added', { detail: res.employee }));
+              window.dispatchEvent(new CustomEvent('sf2w:toast', { detail: { message: 'Kartu berhasil didaftarkan untuk ' + res.employee.name, type: 'success' } }));
+            } else {
+              window.dispatchEvent(new CustomEvent('sf2w:toast', { detail: { message: res.message || 'Gagal mendaftar kartu', type: 'error' } }));
+            }
+          }
+        }
+
+        async function unregisterCard() {
+          if (!selected.value) return;
+          const res = await apiPost('saveEmployeeCard', { employeeId: selected.value.id, cardUid: '' });
+          if (res.ok && res.employee) {
+            selected.value = res.employee;
+            window.dispatchEvent(new CustomEvent('sf2w:employee-added', { detail: res.employee }));
+            window.dispatchEvent(new CustomEvent('sf2w:toast', { detail: { message: 'Kartu berhasil dilepas dari ' + res.employee.name, type: 'success' } }));
+          } else {
+            window.dispatchEvent(new CustomEvent('sf2w:toast', { detail: { message: res.message || 'Gagal melepas kartu', type: 'error' } }));
+          }
+        }
+
+        function onKeyDown(e) {
+          if (scan.active) {
+            if (e.key === 'Escape') {
+              cancelScan();
+            } else if (e.key === 'Enter' || e.key === 'Tab') {
+              e.preventDefault();
+              if (scan.uid.length >= 4) commitScan(scan.uid);
+              else cancelScan();
+            } else if (e.key.length === 1 && !e.ctrlKey && !e.metaKey && !e.altKey) {
+              e.preventDefault();
+              if (/[a-zA-Z0-9]/.test(e.key)) scan.uid += e.key;
+            }
+            return;
+          }
+          
+          if (!selected.value) {
+            const now = Date.now();
+            const gap = now - lastKeyTime;
+            if (gap > 80) {
+              passiveBuf = '';
+            }
+            lastKeyTime = now;
+            if (e.key === 'Enter' || e.key === 'Tab') {
+              if (passiveBuf.length >= 4 && gap <= 80) {
+                const uid = passiveBuf;
+                passiveBuf = '';
+                query.value = '';
+                queryResults.value = [];
+                resetForm();
+                scan.mode = 'select';
+                commitScan(uid);
+              }
+              passiveBuf = '';
+            } else if (e.key.length === 1 && !e.ctrlKey && !e.metaKey && !e.altKey) {
+              if (/[a-zA-Z0-9]/.test(e.key)) passiveBuf += e.key;
+              else passiveBuf = '';
+            }
+          }
+        }
+
         const addOpen = ref(false);
         const addingEmp = ref(false);
         const addError = ref('');
-        const addForm = reactive({ name: '', unit: '', dob: '', heightCm: null });
+        const addForm = reactive({ name: '', unit: '', grup: '', dob: '', heightCm: null });
         const unitOptions = computed(() => {
           const set = {};
           (props.employees || []).forEach((e) => { if (e.unit) set[e.unit] = true; });
@@ -2080,6 +2212,7 @@
           const q = query.value.trim();
           addForm.name = /^K-\d+$/i.test(q) ? '' : q;
           addForm.unit = '';
+          addForm.grup = '';
           addForm.dob = '';
           addForm.heightCm = null;
           addError.value = '';
@@ -2094,9 +2227,11 @@
         async function submitEmployee() {
           const name = String(addForm.name || '').trim();
           const unit = String(addForm.unit || '').trim();
+          const grup = String(addForm.grup || '').trim().toUpperCase();
           const dob = String(addForm.dob || '').trim();
           if (!name) { addError.value = 'Nama lengkap wajib diisi'; return; }
           if (!unit) { addError.value = 'Unit wajib diisi'; return; }
+          if (!grup || !/^[A-D]$/.test(grup)) { addError.value = 'Grup tugas wajib dipilih (A, B, C, atau D)'; return; }
           if (!dob) { addError.value = 'Tanggal lahir wajib diisi'; return; }
           if (!/^\d{4}-\d{2}-\d{2}$/.test(dob) || isNaN(Date.parse(dob)) || Date.parse(dob) > Date.now()) {
             addError.value = 'Tanggal lahir tidak valid';
@@ -2111,13 +2246,17 @@
           if (h < 50 || h > 250) { addError.value = 'Tinggi badan di luar rentang 50-250'; return; }
           addingEmp.value = true;
           addError.value = '';
-          const res = await apiPost('addEmployee', { name, unit, dob, heightCm: h });
+          const res = await apiPost('addEmployee', { name, unit, grup, dob, heightCm: h });
           addingEmp.value = false;
           if (res.ok && res.employee) {
             window.dispatchEvent(new CustomEvent('sf2w:employee-added', { detail: res.employee }));
             window.dispatchEvent(new CustomEvent('sf2w:toast', { detail: { message: 'Karyawan berhasil ditambahkan.', type: 'success' } }));
             addOpen.value = false;
             pick(res.employee);
+            setTimeout(() => {
+              startScan('register');
+              window.dispatchEvent(new CustomEvent('sf2w:toast', { detail: { message: 'Tempelkan kartu RFID untuk mendaftarkannya ke ' + res.employee.name } }));
+            }, 500);
           } else {
             addError.value = res.message || 'Gagal menambah karyawan';
           }
@@ -2415,6 +2554,7 @@
         }
 
         onMounted(() => {
+          window.addEventListener('keydown', onKeyDown, true);
           window.addEventListener('sf2w:pick-employee', onPicked);
           window.addEventListener('sf2w:bt-disconnected', onDisconnected);
           window.addEventListener('sf2w:bt-log', onBtLog);
@@ -2429,6 +2569,8 @@
         });
 
         onUnmounted(() => {
+          cancelScan();
+          window.removeEventListener('keydown', onKeyDown, true);
           btClearMeasure();
           if (autoToastTimer) { clearTimeout(autoToastTimer); autoToastTimer = null; }
           Object.keys(devices).forEach((k) => btStopReconnect(k));
@@ -2447,6 +2589,7 @@
 
         return {
           query, queryResults, selected, devices, form, manualFields, saving,
+          scan, startScan, cancelScan, unregisterCard,
           bmi, status, alerts, canSave, fillSource, srcTag, srcTagCls,
           btLog, logOpen, fmtLogTime,
           onSearch, pick, clearSelection, connect, enableManual, deviceChip,
@@ -2483,7 +2626,7 @@
                   @click="pick(emp)"
                 >
                   <span class="block text-sm font-medium text-ink">{{ emp.name }}</span>
-                  <span class="block text-xs text-muted">{{ emp.id }} · {{ emp.unit }}<span v-if="emp.shift"> · Shift {{ emp.shift }}</span></span>
+                    <span class="block text-xs text-muted">{{ emp.id }} · {{ emp.unit }}<span v-if="emp.grup"> · Grup {{ emp.grup }}</span></span>
                 </button>
                 <button
                   v-if="noMatch"
@@ -2499,15 +2642,57 @@
               </div>
             </div>
 
-            <div v-if="selected" class="mt-4 flex flex-wrap items-center gap-4 p-4 bg-canvas rounded-md border border-line">
-              <div class="w-12 h-12 rounded-full bg-primary text-white font-bold flex items-center justify-center">
-                {{ selected.name.split(' ').map(w => w[0]).slice(0,2).join('') }}
+            <div v-if="!selected" class="mt-4 pt-4 border-t border-line">
+              <div v-if="!scan.active" class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 bg-canvas p-4 rounded-md border border-line">
+                <div>
+                  <p class="text-sm font-semibold text-ink">Pilih Otomatis</p>
+                  <p class="text-xs text-muted">Tempelkan kartu RFID karyawan untuk memilih data otomatis.</p>
+                </div>
+                <button class="min-touch px-4 py-2 rounded-md bg-iconbg text-primary text-sm font-semibold whitespace-nowrap hover:opacity-90 transition-opacity" @click="startScan('select')">
+                  Pindai Kartu
+                </button>
               </div>
-              <div class="flex-1 min-w-[160px]">
-                <p class="font-semibold text-ink">{{ selected.name }}</p>
-                <p class="text-xs text-muted">{{ selected.id }} · {{ selected.unit }} · {{ selected.age }} th · {{ selected.heightCm }} cm</p>
+              <div v-else class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 bg-iconbg/50 p-4 rounded-md border border-primary/30 animate-pulse">
+                <div>
+                  <p class="text-sm font-semibold text-primary">Tempelkan kartu ke reader…</p>
+                  <p class="text-xs text-muted">Menunggu input scanner (sisa {{ scan.remain }} dtk) <span v-if="scan.uid" class="font-mono text-ink font-bold ml-1">{{ scan.uid }}</span></p>
+                </div>
+                <button class="min-touch px-4 py-2 rounded-md border border-primary/30 text-primary text-sm font-semibold hover:bg-surface" @click="cancelScan">Batal</button>
               </div>
-              <button class="min-touch px-4 py-2 rounded-md border border-line text-sm text-ink hover:bg-surface" @click="clearSelection">Ganti</button>
+            </div>
+
+            <div v-if="selected" class="mt-4 flex flex-col gap-3 p-4 bg-canvas rounded-md border border-line">
+              <div class="flex flex-wrap items-center gap-4">
+                <div class="w-12 h-12 rounded-full bg-primary text-white font-bold flex items-center justify-center">
+                  {{ selected.name.split(' ').map(w => w[0]).slice(0,2).join('') }}
+                </div>
+                <div class="flex-1 min-w-[160px]">
+                  <p class="font-semibold text-ink">{{ selected.name }}</p>
+                  <p class="text-xs text-muted">{{ selected.id }} · {{ selected.unit }} · Grup {{ selected.grup || '-' }} · {{ selected.age }} th · {{ selected.heightCm }} cm</p>
+                </div>
+                <button class="min-touch px-4 py-2 rounded-md border border-line text-sm text-ink hover:bg-surface" @click="clearSelection">Ganti Karyawan</button>
+              </div>
+              <hr class="border-line" />
+              <div v-if="scan.active && scan.mode === 'register'" class="flex items-center justify-between p-3 rounded-md bg-iconbg/50 border border-primary/30 animate-pulse">
+                <div>
+                  <p class="text-sm font-semibold text-primary">Daftarkan kartu untuk {{ selected.name }}</p>
+                  <p class="text-xs text-muted">Tempelkan kartu ke reader (sisa {{ scan.remain }} dtk) <span v-if="scan.uid" class="font-mono text-ink font-bold ml-1">{{ scan.uid }}</span></p>
+                </div>
+                <button class="min-touch px-3 py-1.5 rounded-md border border-primary/30 text-primary text-xs font-semibold hover:bg-surface" @click="cancelScan">Batal</button>
+              </div>
+              <div v-else class="flex items-center justify-between">
+                <p class="text-sm text-ink font-medium">
+                  Kartu RFID: 
+                  <span v-if="selected.cardUid" class="font-mono bg-surface border border-line px-2 py-0.5 rounded text-xs ml-1">{{ selected.cardUid }}</span>
+                  <span v-else class="text-muted font-normal ml-1">Belum terdaftar</span>
+                </p>
+                <div class="flex gap-2">
+                  <button class="min-touch px-3 py-1.5 rounded-md border border-line text-xs font-semibold text-ink hover:bg-surface" @click="startScan('register')">
+                    {{ selected.cardUid ? 'Ganti Kartu' : 'Daftarkan Kartu' }}
+                  </button>
+                  <button v-if="selected.cardUid" class="min-touch px-3 py-1.5 rounded-md border border-danger/30 text-xs font-semibold text-danger hover:bg-danger/5" @click="unregisterCard">Lepas</button>
+                </div>
+              </div>
             </div>
           </div>
 
@@ -2728,14 +2913,24 @@
                 <input v-model="addForm.name" type="text" placeholder="mis. Agus Salim"
                   class="w-full min-touch px-4 py-3 rounded-md border border-line bg-surface text-ink placeholder-muted focus:outline-none focus:border-primary" />
               </div>
-              <div>
-                <label class="block text-sm font-medium text-ink mb-1.5">Unit</label>
-                <input v-model="addForm.unit" type="text" list="unit-options" placeholder="mis. Produksi"
-                  class="w-full min-touch px-4 py-3 rounded-md border border-line bg-surface text-ink placeholder-muted focus:outline-none focus:border-primary" />
-                <datalist id="unit-options">
-                  <option v-for="u in unitOptions" :key="u" :value="u"></option>
-                </datalist>
-              </div>
+                <div>
+                  <label class="block text-sm font-medium text-ink mb-1.5">Unit</label>
+                  <input v-model="addForm.unit" type="text" list="unit-options" placeholder="mis. Produksi"
+                    class="w-full min-touch px-4 py-3 rounded-md border border-line bg-surface text-ink placeholder-muted focus:outline-none focus:border-primary" />
+                  <datalist id="unit-options">
+                    <option v-for="u in unitOptions" :key="u" :value="u"></option>
+                  </datalist>
+                </div>
+                <div>
+                  <label class="block text-sm font-medium text-ink mb-1.5">Grup Tugas</label>
+                  <select v-model="addForm.grup" class="w-full min-touch px-4 py-3 rounded-md border border-line bg-surface text-ink focus:outline-none focus:border-primary">
+                    <option value="" disabled>Pilih Grup</option>
+                    <option value="A">Grup A</option>
+                    <option value="B">Grup B</option>
+                    <option value="C">Grup C</option>
+                    <option value="D">Grup D</option>
+                  </select>
+                </div>
               <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label class="block text-sm font-medium text-ink mb-1.5">Tanggal lahir</label>
