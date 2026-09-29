@@ -1959,6 +1959,7 @@
         
         let lastKeyTime = 0;
         let passiveBuf = '';
+        let passiveDirty = false;
         
         function normalizeUid(raw) {
           return String(raw).replace(/[-:\s]/g, '').toUpperCase();
@@ -1985,22 +1986,29 @@
           if (scanInterval) { clearInterval(scanInterval); scanInterval = null; }
         }
 
-        async function commitScan(rawUid) {
-          const uid = normalizeUid(rawUid);
-          cancelScan();
-          if (!/^[A-Z0-9]{4,32}$/.test(uid)) {
-            window.dispatchEvent(new CustomEvent('sf2w:toast', { detail: { message: 'Format UID tidak valid (4-32 karakter)', type: 'error' } }));
-            return;
-          }
-          if (scan.mode === 'select') {
-            const emp = (props.employees || []).find((e) => String(e.cardUid || '').toUpperCase() === uid);
-            if (emp) {
-              pick(emp);
-              window.dispatchEvent(new CustomEvent('sf2w:toast', { detail: { message: 'Kartu terbaca — ' + emp.name + ' dipilih.', type: 'success' } }));
-            } else {
-              window.dispatchEvent(new CustomEvent('sf2w:toast', { detail: { message: 'Kartu belum terdaftar (' + uid + ') — pilih karyawan lalu klik Daftarkan Kartu.', type: 'error' } }));
+          async function commitScan(rawUid) {
+            const uid = normalizeUid(rawUid);
+            cancelScan();
+            if (!/^[A-Z0-9]{4,32}$/.test(uid)) {
+              window.dispatchEvent(new CustomEvent('sf2w:toast', { detail: { message: 'Format UID tidak valid (4-32 karakter)', type: 'error' } }));
+              return;
             }
-          } else if (scan.mode === 'register') {
+            if (scan.mode === 'select') {
+              let emp = (props.employees || []).find((e) => e.cardUid && normalizeUid(e.cardUid) === uid);
+              if (!emp) {
+                const res = await apiPost('listEmployees', {});
+                if (res.ok && res.employees) {
+                  emp = res.employees.find((e) => e.cardUid && normalizeUid(e.cardUid) === uid);
+                  if (emp) window.dispatchEvent(new CustomEvent('sf2w:employee-added', { detail: emp }));
+                }
+              }
+              if (emp) {
+                pick(emp);
+                window.dispatchEvent(new CustomEvent('sf2w:toast', { detail: { message: 'Kartu terbaca — ' + emp.name + ' dipilih.', type: 'success' } }));
+              } else {
+                window.dispatchEvent(new CustomEvent('sf2w:toast', { detail: { message: 'Kartu belum terdaftar (' + uid + ') — cek kolom Nomor kartu RF di Sheet atau daftarkan kartu baru.', type: 'error' } }));
+              }
+            } else if (scan.mode === 'register') {
             if (!selected.value) return;
             const res = await apiPost('saveEmployeeCard', { employeeId: selected.value.id, cardUid: uid });
             if (res.ok && res.employee) {
@@ -2025,45 +2033,62 @@
           }
         }
 
-        function onKeyDown(e) {
-          if (scan.active) {
-            if (e.key === 'Escape') {
-              cancelScan();
-            } else if (e.key === 'Enter' || e.key === 'Tab') {
-              e.preventDefault();
-              if (scan.uid.length >= 4) commitScan(scan.uid);
-              else cancelScan();
-            } else if (e.key.length === 1 && !e.ctrlKey && !e.metaKey && !e.altKey) {
-              e.preventDefault();
-              if (/[a-zA-Z0-9]/.test(e.key)) scan.uid += e.key;
-            }
-            return;
-          }
-          
-          if (!selected.value) {
-            const now = Date.now();
-            const gap = now - lastKeyTime;
-            if (gap > 80) {
-              passiveBuf = '';
-            }
-            lastKeyTime = now;
-            if (e.key === 'Enter' || e.key === 'Tab') {
-              if (passiveBuf.length >= 4 && gap <= 80) {
-                const uid = passiveBuf;
-                passiveBuf = '';
-                query.value = '';
-                queryResults.value = [];
-                resetForm();
-                scan.mode = 'select';
-                commitScan(uid);
+          function onKeyDown(e) {
+            if (scan.active) {
+              if (e.key === 'Escape') {
+                cancelScan();
+              } else if (e.key === 'Enter' || e.key === 'Tab') {
+                e.preventDefault();
+                if (scan.uid.length >= 4) commitScan(scan.uid);
+                else cancelScan();
+              } else if (e.key.length === 1 && !e.ctrlKey && !e.metaKey && !e.altKey) {
+                e.preventDefault();
+                if (/[a-zA-Z0-9]/.test(e.key)) scan.uid += e.key;
               }
-              passiveBuf = '';
-            } else if (e.key.length === 1 && !e.ctrlKey && !e.metaKey && !e.altKey) {
-              if (/[a-zA-Z0-9]/.test(e.key)) passiveBuf += e.key;
-              else passiveBuf = '';
+              return;
+            }
+            
+            if (!selected.value) {
+              const now = Date.now();
+              const gap = now - lastKeyTime;
+              if (gap > 80 && passiveBuf.length > 0) {
+                passiveDirty = true;
+              }
+              if (gap > 80) {
+                passiveBuf = '';
+              }
+              lastKeyTime = now;
+              if (e.key === 'Enter' || e.key === 'Tab') {
+                if (passiveBuf.length >= 4 && gap <= 80) {
+                  const uid = passiveBuf;
+                  const wasDirty = passiveDirty;
+                  passiveBuf = '';
+                  passiveDirty = false;
+                  
+                  if (wasDirty) {
+                    window.dispatchEvent(new CustomEvent('sf2w:toast', { detail: { message: 'Kartu terbaca terpotong (reader lambat) — mohon tempelkan ulang.', type: 'error' } }));
+                    return;
+                  }
+                  
+                  query.value = '';
+                  queryResults.value = [];
+                  resetForm();
+                  scan.mode = 'select';
+                  commitScan(uid);
+                }
+                passiveBuf = '';
+                passiveDirty = false;
+              } else if (e.key.length === 1 && !e.ctrlKey && !e.metaKey && !e.altKey) {
+                if (/[a-zA-Z0-9]/.test(e.key)) {
+                  if (passiveBuf === '') passiveDirty = false;
+                  passiveBuf += e.key;
+                } else {
+                  if (passiveBuf.length > 0) passiveDirty = true;
+                  passiveBuf = '';
+                }
+              }
             }
           }
-        }
 
         const addOpen = ref(false);
         const addingEmp = ref(false);

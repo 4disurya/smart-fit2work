@@ -408,10 +408,11 @@ function actionListEmployees_() {
   seedEmployees_(sh);
   const rows = readEmpRows_(sh);
   const now = new Date();
-  rows.forEach(function(r) {
-    r.age = r.dob ? ageFromDob_(r.dob, now) : null;
-  });
-  return { ok: true, employees: rows };
+    rows.forEach(function(r) {
+      r.age = r.dob ? ageFromDob_(r.dob, now) : null;
+      if (r.cardUid) r.cardUid = String(r.cardUid).replace(/[-:\s]/g, '').toUpperCase();
+    });
+    return { ok: true, employees: rows };
 }
 
 function actionAddEmployee_(data) {
@@ -546,7 +547,7 @@ function actionSaveEmployeeCard_(data) {
       if (String(r.id) === employeeId) {
         rowIndex = i + 2;
         employee = r;
-      } else if (cardUid !== '' && String(r.cardUid || '').toUpperCase() === cardUid) {
+      } else if (cardUid !== '' && String(r.cardUid || '').replace(/[-:\s]/g, '').toUpperCase() === cardUid) {
         return { ok: false, message: 'Kartu sudah terdaftar untuk ' + (r.name || 'karyawan lain') + ' (' + r.id + ')' };
       }
     }
