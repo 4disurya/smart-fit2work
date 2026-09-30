@@ -2109,17 +2109,6 @@
             }
           }
 
-        const addOpen = ref(false);
-        const addingEmp = ref(false);
-        const addError = ref('');
-        const addForm = reactive({ name: '', unit: '', grup: '', dob: '', heightCm: null });
-        const unitOptions = computed(() => {
-          const set = {};
-          (props.employees || []).forEach((e) => { if (e.unit) set[e.unit] = true; });
-          return Object.keys(set);
-        });
-        const todayStr = new Date().toISOString().slice(0, 10);
-
         const qOpen = ref(false);
         const qAnswers = reactive({});
         let saveTs = null;
@@ -2250,60 +2239,6 @@
           queryResults.value = [];
           noMatch.value = false;
           resetForm();
-        }
-
-        function openAdd() {
-          const q = query.value.trim();
-          addForm.name = /^K-\d+$/i.test(q) ? '' : q;
-          addForm.unit = '';
-          addForm.grup = '';
-          addForm.dob = '';
-          addForm.heightCm = null;
-          addError.value = '';
-          addOpen.value = true;
-        }
-
-        function closeAdd() {
-          addOpen.value = false;
-          addError.value = '';
-        }
-
-        async function submitEmployee() {
-          const name = String(addForm.name || '').trim();
-          const unit = String(addForm.unit || '').trim();
-          const grup = String(addForm.grup || '').trim().toUpperCase();
-          const dob = String(addForm.dob || '').trim();
-          if (!name) { addError.value = 'Nama lengkap wajib diisi'; return; }
-          if (!unit) { addError.value = 'Unit wajib diisi'; return; }
-          if (!grup || !/^[A-D]$/.test(grup)) { addError.value = 'Grup tugas wajib dipilih (A, B, C, atau D)'; return; }
-          if (!dob) { addError.value = 'Tanggal lahir wajib diisi'; return; }
-          if (!/^\d{4}-\d{2}-\d{2}$/.test(dob) || isNaN(Date.parse(dob)) || Date.parse(dob) > Date.now()) {
-            addError.value = 'Tanggal lahir tidak valid';
-            return;
-          }
-          if (addForm.heightCm === null || addForm.heightCm === '' || addForm.heightCm === undefined) {
-            addError.value = 'Tinggi badan wajib diisi';
-            return;
-          }
-          const h = Number(addForm.heightCm);
-          if (!isFinite(h)) { addError.value = 'Tinggi badan bukan angka yang valid'; return; }
-          if (h < 50 || h > 250) { addError.value = 'Tinggi badan di luar rentang 50-250'; return; }
-          addingEmp.value = true;
-          addError.value = '';
-          const res = await apiPost('addEmployee', { name, unit, grup, dob, heightCm: h });
-          addingEmp.value = false;
-          if (res.ok && res.employee) {
-            window.dispatchEvent(new CustomEvent('sf2w:employee-added', { detail: res.employee }));
-            window.dispatchEvent(new CustomEvent('sf2w:toast', { detail: { message: 'Karyawan berhasil ditambahkan.', type: 'success' } }));
-            addOpen.value = false;
-            pick(res.employee);
-            setTimeout(() => {
-              startScan('register');
-              window.dispatchEvent(new CustomEvent('sf2w:toast', { detail: { message: 'Tempelkan kartu RFID untuk mendaftarkannya ke ' + res.employee.name } }));
-            }, 500);
-          } else {
-            addError.value = res.message || 'Gagal menambah karyawan';
-          }
         }
 
         function resetForm() {
@@ -2638,8 +2573,7 @@
           btLog, logOpen, fmtLogTime,
           onSearch, pick, clearSelection, connect, enableManual, deviceChip,
           startMeasurement, submitSave, fmtDate,
-          noMatch, addOpen, addError, addForm, addingEmp, unitOptions, todayStr,
-          openAdd, closeAdd, submitEmployee,
+          noMatch,
           Q_LABELS, qOpen, qAnswers, qAnswered, qComplete, closeQ,
         };
       },
@@ -2672,17 +2606,13 @@
                   <span class="block text-sm font-medium text-ink">{{ emp.name }}</span>
                     <span class="block text-xs text-muted">{{ emp.id }} · {{ emp.unit }}<span v-if="emp.grup"> · Grup {{ emp.grup }}</span></span>
                 </button>
-                <button
+                <div
                   v-if="noMatch"
-                  class="w-full text-left px-4 py-3 hover:bg-canvas min-touch border-t border-line flex items-start gap-3"
-                  @click="openAdd"
+                  class="w-full text-center px-4 py-4 border-t border-line"
                 >
-                  <span class="w-7 h-7 shrink-0 rounded-full bg-primary/10 text-primary flex items-center justify-center font-bold">+</span>
-                  <span>
-                    <span class="block text-sm font-semibold text-primary">Tambah data karyawan</span>
-                    <span class="block text-xs text-muted">“{{ query }}” belum terdaftar — isi data untuk menambahkannya</span>
-                  </span>
-                </button>
+                  <span class="block text-sm font-medium text-ink">Data tidak ditemukan</span>
+                  <span class="block text-xs text-muted mt-1">Silakan tambahkan karyawan melalui menu Pengaturan.</span>
+                </div>
               </div>
             </div>
 
@@ -2945,60 +2875,6 @@
             </div>
           </div>
 
-          <!-- Modal tambah karyawan -->
-          <div v-if="addOpen" class="fixed inset-0 z-40 flex items-end sm:items-center justify-center bg-black/40 p-4" @click.self="closeAdd">
-            <div class="w-full max-w-md bg-surface rounded-xl shadow-lift border border-line p-6 space-y-4" role="dialog" aria-label="Tambah Data Karyawan">
-              <div>
-                <h3 class="text-lg font-bold text-ink">Tambah Data Karyawan</h3>
-                <p class="text-xs text-muted">Data karyawan baru disimpan ke daftar karyawan.</p>
-              </div>
-              <div>
-                <label class="block text-sm font-medium text-ink mb-1.5">Nama lengkap</label>
-                <input v-model="addForm.name" type="text" placeholder="mis. Agus Salim"
-                  class="w-full min-touch px-4 py-3 rounded-md border border-line bg-surface text-ink placeholder-muted focus:outline-none focus:border-primary" />
-              </div>
-                <div>
-                  <label class="block text-sm font-medium text-ink mb-1.5">Unit</label>
-                  <input v-model="addForm.unit" type="text" list="unit-options" placeholder="mis. Produksi"
-                    class="w-full min-touch px-4 py-3 rounded-md border border-line bg-surface text-ink placeholder-muted focus:outline-none focus:border-primary" />
-                  <datalist id="unit-options">
-                    <option v-for="u in unitOptions" :key="u" :value="u"></option>
-                  </datalist>
-                </div>
-                <div>
-                  <label class="block text-sm font-medium text-ink mb-1.5">Grup Tugas</label>
-                  <select v-model="addForm.grup" class="w-full min-touch px-4 py-3 rounded-md border border-line bg-surface text-ink focus:outline-none focus:border-primary">
-                    <option value="" disabled>Pilih Grup</option>
-                    <option value="A">Grup A</option>
-                    <option value="B">Grup B</option>
-                    <option value="C">Grup C</option>
-                    <option value="D">Grup D</option>
-                  </select>
-                </div>
-              <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <label class="block text-sm font-medium text-ink mb-1.5">Tanggal lahir</label>
-                  <input v-model="addForm.dob" type="date" :max="todayStr"
-                    class="w-full min-touch px-4 py-3 rounded-md border border-line bg-surface text-ink focus:outline-none focus:border-primary" />
-                </div>
-                <div>
-                  <label class="block text-sm font-medium text-ink mb-1.5">Tinggi badan (cm)</label>
-                  <input v-model.number="addForm.heightCm" type="number" min="50" max="250" placeholder="170"
-                    class="w-full min-touch px-4 py-3 rounded-md border border-line bg-surface text-ink placeholder-muted focus:outline-none focus:border-primary" />
-                </div>
-              </div>
-              <p v-if="addError" class="text-sm text-danger font-medium">{{ addError }}</p>
-              <div class="flex gap-2 pt-1">
-                <button class="flex-1 min-touch rounded-md border border-line text-sm font-semibold text-ink hover:bg-canvas"
-                  :disabled="addingEmp" @click="closeAdd">Batal</button>
-                <button class="flex-1 min-touch rounded-md bg-primary text-white text-sm font-semibold disabled:opacity-60"
-                  :disabled="addingEmp" @click="submitEmployee">
-                  <span v-if="addingEmp" class="spinner align-middle mr-1"></span>{{ addingEmp ? 'Menyimpan…' : 'Simpan Karyawan' }}
-                </button>
-              </div>
-            </div>
-          </div>
-
           <!-- Modal kuesioner sebelum simpan pemeriksaan -->
           <div v-if="qOpen" class="fixed inset-0 z-40 flex items-end sm:items-center justify-center bg-black/40 p-4" @click.self="closeQ">
             <div class="w-full max-w-xl bg-surface rounded-xl shadow-lift border border-line p-6 space-y-4 max-h-[85vh] overflow-y-auto" role="dialog" aria-label="Kuesioner Kesehatan">
@@ -3186,7 +3062,22 @@
         const editName = ref('');
         const editRole = ref('');
 
+        const newEmp = reactive({
+          rf: '',
+          name: '',
+          unit: '',
+          grup: '',
+          dob: '',
+          heightCm: null
+        });
+        const addLoading = ref(false);
+        const addError = ref('');
+        const scanActive = ref(false);
+        let scanTimer = null;
+        let scanBuffer = '';
+
         onMounted(async () => {
+          window.addEventListener('keydown', onScanKeyDown);
           const res = await apiPost('listDutyOfficers', {});
           if (res.ok && res.officers) {
             officers.value = res.officers;
@@ -3198,6 +3089,11 @@
             window.dispatchEvent(new CustomEvent('sf2w:duty-changed', { detail: { id: selectedId.value } }));
             syncEdit();
           }
+        });
+
+        onUnmounted(() => {
+          window.removeEventListener('keydown', onScanKeyDown);
+          if (scanTimer) clearTimeout(scanTimer);
         });
 
         const selected = computed(() => {
@@ -3254,13 +3150,105 @@
           showToast('Pilihan petugas jaga dikosongkan.');
         }
 
-        return { officers, selectedId, selected, editName, editRole, select, saveOfficer, clearSelection };
+        function startEmpScan() {
+          scanActive.value = true;
+          scanBuffer = '';
+          if (scanTimer) clearTimeout(scanTimer);
+          scanTimer = setTimeout(() => { scanActive.value = false; scanBuffer = ''; }, 15000);
+          showToast('Silakan tap kartu RF pada scanner...', 'success');
+        }
+        
+        function stopEmpScan() {
+          scanActive.value = false;
+          scanBuffer = '';
+          if (scanTimer) clearTimeout(scanTimer);
+        }
+
+        function onScanKeyDown(e) {
+          if (!scanActive.value) return;
+          if (e.key === 'Escape') {
+             stopEmpScan();
+          } else if (e.key === 'Enter' || e.key === 'Tab') {
+             e.preventDefault();
+             if (scanBuffer.length >= 4) {
+               newEmp.rf = scanBuffer.replace(/[-:\s]/g, '').toUpperCase();
+               stopEmpScan();
+               showToast('Kartu RF berhasil discan', 'success');
+             } else {
+               stopEmpScan();
+             }
+          } else if (e.key.length === 1 && !e.ctrlKey && !e.metaKey && !e.altKey) {
+             e.preventDefault();
+             if (/[a-zA-Z0-9]/.test(e.key)) scanBuffer += e.key;
+          }
+        }
+
+        async function submitNewEmployee() {
+          const name = String(newEmp.name || '').trim();
+          const unit = String(newEmp.unit || '').trim();
+          const grup = String(newEmp.grup || '').trim().toUpperCase();
+          const dob = String(newEmp.dob || '').trim();
+          const rf = String(newEmp.rf || '').trim();
+          
+          if (!name) { addError.value = 'Nama lengkap wajib diisi'; return; }
+          if (!unit) { addError.value = 'Unit wajib diisi'; return; }
+          if (!grup || !/^[A-D]$/.test(grup)) { addError.value = 'Grup tugas wajib dipilih (A, B, C, atau D)'; return; }
+          if (!dob) { addError.value = 'Tanggal lahir wajib diisi'; return; }
+          if (!/^\d{4}-\d{2}-\d{2}$/.test(dob) || isNaN(Date.parse(dob)) || Date.parse(dob) > Date.now()) {
+            addError.value = 'Tanggal lahir tidak valid';
+            return;
+          }
+          if (newEmp.heightCm === null || newEmp.heightCm === '' || newEmp.heightCm === undefined) {
+            addError.value = 'Tinggi badan wajib diisi';
+            return;
+          }
+          const h = Number(newEmp.heightCm);
+          if (!isFinite(h) || h < 50 || h > 250) { addError.value = 'Tinggi badan di luar rentang 50-250'; return; }
+          
+          if (rf && !/^[A-Z0-9]{4,32}$/.test(rf.replace(/[-:\s]/g, '').toUpperCase())) {
+            addError.value = 'Format Nomor RF tidak valid (4-32 karakter)';
+            return;
+          }
+
+          addLoading.value = true;
+          addError.value = '';
+          const res = await apiPost('addEmployee', { name, unit, grup, dob, heightCm: h });
+          
+          if (res.ok && res.employee) {
+             let msg = 'Karyawan berhasil ditambahkan.';
+             if (rf) {
+                const rfRes = await apiPost('saveEmployeeCard', { employeeId: res.employee.id, cardUid: rf });
+                if (rfRes.ok) {
+                   msg += ' Kartu RF tersimpan.';
+                   res.employee.cardUid = rfRes.employee.cardUid;
+                } else {
+                   msg += ' Gagal menyimpan RF: ' + (rfRes.message || '');
+                }
+             }
+             window.dispatchEvent(new CustomEvent('sf2w:employee-added', { detail: res.employee }));
+             showToast(msg, 'success');
+             newEmp.rf = '';
+             newEmp.name = '';
+             newEmp.unit = '';
+             newEmp.grup = '';
+             newEmp.dob = '';
+             newEmp.heightCm = null;
+          } else {
+             addError.value = res.message || 'Gagal menambah karyawan';
+          }
+          addLoading.value = false;
+        }
+
+        return { 
+          officers, selectedId, selected, editName, editRole, select, saveOfficer, clearSelection,
+          newEmp, addLoading, addError, scanActive, startEmpScan, submitNewEmployee
+        };
       },
       template: `
-        <div class="space-y-6">
+        <div class="space-y-6 pb-20">
           <div>
             <h2 class="text-xl font-bold text-ink">Pengaturan</h2>
-            <p class="text-sm text-muted">Pilih dokter atau perawat yang jaga untuk shift berjalan.</p>
+            <p class="text-sm text-muted">Konfigurasi sistem dan manajemen data dasar.</p>
           </div>
 
           <div class="bg-surface rounded-lg shadow-card border border-line p-5 max-w-2xl">
@@ -3339,6 +3327,99 @@
             </div>
 
             <p class="text-xs text-muted mt-4">Tersimpan di database (Google Sheets). Pilihan jaga otomatis tersimpan selama sesi shift berjalan (sessionStorage).</p>
+          </div>
+
+          <div class="bg-surface rounded-lg shadow-card border border-line p-5 max-w-2xl mt-6">
+            <div class="mb-4">
+              <p class="text-xs font-semibold text-muted uppercase tracking-wider">Menambah Data Karyawan</p>
+              <p class="text-sm text-muted mt-1">Tambahkan karyawan baru ke database beserta nomor kartu RF.</p>
+            </div>
+            
+            <div class="space-y-4">
+              <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label class="block text-xs font-medium text-muted mb-1">Nomor RF (Opsional)</label>
+                  <div class="flex gap-2">
+                    <input
+                      v-model="newEmp.rf"
+                      type="text"
+                      placeholder="Scan atau ketik"
+                      class="w-full min-touch px-3 py-2.5 rounded-md border border-line bg-surface text-sm text-ink placeholder-muted focus:outline-none focus:border-primary"
+                      :disabled="scanActive"
+                    />
+                    <button
+                      class="min-touch px-3 py-2.5 rounded-md border border-line text-sm font-medium transition whitespace-nowrap"
+                      :class="scanActive ? 'bg-primary text-white border-primary' : 'bg-canvas text-ink hover:bg-surface'"
+                      @click="startEmpScan"
+                    >
+                      {{ scanActive ? 'Membaca...' : 'Scan' }}
+                    </button>
+                  </div>
+                </div>
+                <div>
+                  <label class="block text-xs font-medium text-muted mb-1">Nama Lengkap <span class="text-danger">*</span></label>
+                  <input
+                    v-model="newEmp.name"
+                    type="text"
+                    class="w-full min-touch px-3 py-2.5 rounded-md border border-line bg-surface text-sm text-ink focus:outline-none focus:border-primary"
+                  />
+                </div>
+                <div>
+                  <label class="block text-xs font-medium text-muted mb-1">Unit <span class="text-danger">*</span></label>
+                  <input
+                    v-model="newEmp.unit"
+                    type="text"
+                    class="w-full min-touch px-3 py-2.5 rounded-md border border-line bg-surface text-sm text-ink focus:outline-none focus:border-primary"
+                  />
+                </div>
+                <div>
+                  <label class="block text-xs font-medium text-muted mb-1">Grup Tugas <span class="text-danger">*</span></label>
+                  <select
+                    v-model="newEmp.grup"
+                    class="w-full min-touch px-3 py-2.5 rounded-md border border-line bg-surface text-sm text-ink focus:outline-none focus:border-primary"
+                  >
+                    <option value="">Pilih Grup</option>
+                    <option value="A">A</option>
+                    <option value="B">B</option>
+                    <option value="C">C</option>
+                    <option value="D">D</option>
+                  </select>
+                </div>
+                <div>
+                  <label class="block text-xs font-medium text-muted mb-1">Tanggal Lahir <span class="text-danger">*</span></label>
+                  <input
+                    v-model="newEmp.dob"
+                    type="date"
+                    class="w-full min-touch px-3 py-2.5 rounded-md border border-line bg-surface text-sm text-ink focus:outline-none focus:border-primary"
+                  />
+                </div>
+                <div>
+                  <label class="block text-xs font-medium text-muted mb-1">Tinggi Badan (cm) <span class="text-danger">*</span></label>
+                  <input
+                    v-model="newEmp.heightCm"
+                    type="number"
+                    min="50"
+                    max="250"
+                    class="w-full min-touch px-3 py-2.5 rounded-md border border-line bg-surface text-sm text-ink focus:outline-none focus:border-primary"
+                  />
+                </div>
+              </div>
+              
+              <div v-if="addError" class="p-3 rounded-md bg-danger/10 border border-danger/20 flex items-start gap-3">
+                <svg class="w-5 h-5 text-danger shrink-0 mt-0.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+                <p class="text-sm text-danger">{{ addError }}</p>
+              </div>
+              
+              <div class="flex justify-end pt-2">
+                <button
+                  class="min-touch px-5 py-2.5 rounded-lg bg-primary text-white text-sm font-semibold hover:opacity-90 disabled:opacity-50 transition"
+                  @click="submitNewEmployee"
+                  :disabled="addLoading"
+                >
+                  {{ addLoading ? 'Menyimpan...' : 'Simpan Karyawan' }}
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       `,
