@@ -3186,13 +3186,16 @@
         async function submitNewEmployee() {
           const name = String(newEmp.name || '').trim();
           const unit = String(newEmp.unit || '').trim();
-          const grup = String(newEmp.grup || '').trim().toUpperCase();
+          let grupRaw = String(newEmp.grup || '').trim();
+          let grup = '';
+          if (/^[a-d]$/i.test(grupRaw)) grup = grupRaw.toUpperCase();
+          else if (grupRaw.toLowerCase() === 'non shift') grup = 'Non Shift';
           const dob = String(newEmp.dob || '').trim();
           const rf = String(newEmp.rf || '').trim();
           
           if (!name) { addError.value = 'Nama lengkap wajib diisi'; return; }
           if (!unit) { addError.value = 'Unit wajib diisi'; return; }
-          if (!grup || !/^[A-D]$/.test(grup)) { addError.value = 'Grup tugas wajib dipilih (A, B, C, atau D)'; return; }
+          if (!grup || (!/^[A-D]$/.test(grup) && grup !== 'Non Shift')) { addError.value = 'Grup tugas wajib dipilih (A, B, C, D, atau Non Shift)'; return; }
           if (!dob) { addError.value = 'Tanggal lahir wajib diisi'; return; }
           if (!/^\d{4}-\d{2}-\d{2}$/.test(dob) || isNaN(Date.parse(dob)) || Date.parse(dob) > Date.now()) {
             addError.value = 'Tanggal lahir tidak valid';
@@ -3383,6 +3386,7 @@
                     <option value="B">B</option>
                     <option value="C">C</option>
                     <option value="D">D</option>
+                    <option value="Non Shift">Non Shift</option>
                   </select>
                 </div>
                 <div>

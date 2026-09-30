@@ -450,12 +450,15 @@ function actionAddEmployee_(data) {
   if (!data || typeof data !== 'object') return { ok: false, message: 'Data tidak valid' };
   const name = data.name === undefined || data.name === null ? '' : String(data.name).trim();
   const unit = data.unit === undefined || data.unit === null ? '' : String(data.unit).trim();
-  let grup = data.grup === undefined || data.grup === null ? '' : String(data.grup).trim().toUpperCase();
+  let grupRaw = data.grup === undefined || data.grup === null ? '' : String(data.grup).trim();
+  let grup = '';
+  if (/^[a-d]$/i.test(grupRaw)) grup = grupRaw.toUpperCase();
+  else if (grupRaw.toLowerCase() === 'non shift') grup = 'Non Shift';
   const dob = data.dob === undefined || data.dob === null ? '' : String(data.dob).trim();
   const heightRaw = data.heightCm === undefined || data.heightCm === null ? '' : String(data.heightCm).trim();
   if (!name) return { ok: false, message: 'Nama lengkap wajib diisi' };
   if (!unit) return { ok: false, message: 'Unit wajib diisi' };
-  if (!grup || !/^[A-D]$/.test(grup)) return { ok: false, message: 'Grup tugas wajib dipilih (A, B, C, atau D)' };
+  if (!grup || (!/^[A-D]$/.test(grup) && grup !== 'Non Shift')) return { ok: false, message: 'Grup tugas wajib dipilih (A, B, C, D, atau Non Shift)' };
   if (!dob) return { ok: false, message: 'Tanggal lahir wajib diisi' };
   if (!/^\d{4}-\d{2}-\d{2}$/.test(dob) || isNaN(Date.parse(dob))) {
     return { ok: false, message: 'Tanggal lahir tidak valid' };
