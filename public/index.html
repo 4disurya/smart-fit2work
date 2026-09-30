@@ -71,154 +71,8 @@
   <script>
     const { createApp, ref, reactive, computed, onMounted, onUnmounted, watch } = Vue;
 
-    /* ========== MOCK SYSTEM ========== */
-    const USE_MOCK = false;
-    window.GAS_ENDPOINT = window.GAS_ENDPOINT || 'https://script.google.com/macros/s/AKfycbxAyBHs6gOI04ZZq38YdDbYn6J1VxD2yIXVr9byxn08695zdr54UubioPyXrob1FCHP/exec';
-    window.GAS_API_KEY = window.GAS_API_KEY || 'DEV_KEY';
-
-    const MOCK = {
-      pin: '1234',
-      user: { name: 'Ns. Ayu Lestari', role: 'Perawat', email: 'ayu.lestari@tpknm.id', initials: 'AL' },
-      dutyOfficers: [
-        { id: 'DOC-01', name: 'dr. Pratama Wijaya, Sp.OK', role: 'Dokter', initials: 'PW' },
-        { id: 'DOC-02', name: 'dr. Ratna Kusuma, Sp.PD', role: 'Dokter', initials: 'RK' },
-        { id: 'NUR-01', name: 'Ns. Ayu Lestari, S.Kep', role: 'Perawat', initials: 'AL' },
-        { id: 'NUR-02', name: 'Ns. Budi Hartono, S.Kep', role: 'Perawat', initials: 'BH' },
-        { id: 'NUR-03', name: 'Ns. Siti Rahma, S.Kep', role: 'Perawat', initials: 'SR' },
-      ],
-      employees: [
-        { id: 'K-1001', cardUid: 'A1B2C3D4', name: 'Budi Santoso', unit: 'HSSE', grup: 'A', dob: '1992-01-01', heightCm: 172, age: 34 },
-        { id: 'K-1002', cardUid: 'E5F6G7H8', name: 'Siti Rahma', unit: 'Produksi', grup: 'A', dob: '1998-01-01', heightCm: 160, age: 28 },
-        { id: 'K-1003', cardUid: null, name: 'Andi Wijaya', unit: 'Maintenance', grup: 'B', dob: '1985-01-01', heightCm: 168, age: 41 },
-        { id: 'K-1004', cardUid: null, name: 'Dewi Anggraini', unit: 'Logistik', grup: 'A', dob: '1995-01-01', heightCm: 158, age: 31 },
-        { id: 'K-1005', cardUid: null, name: 'Rudi Hartono', unit: 'Produksi', grup: 'C', dob: '1981-01-01', heightCm: 175, age: 45 },
-        { id: 'K-1006', cardUid: null, name: 'Lestari Putri', unit: 'HRD', grup: 'A', dob: '2000-01-01', heightCm: 162, age: 26 },
-        { id: 'K-1007', cardUid: null, name: 'Hendra Gunawan', unit: 'Maintenance', grup: 'B', dob: '1988-01-01', heightCm: 170, age: 38 },
-        { id: 'K-1008', cardUid: null, name: 'Maya Sari', unit: 'Logistik', grup: 'A', dob: '1997-01-01', heightCm: 155, age: 29 },
-      ],
-      records: [
-        { id: 'TRX-20260924-001', timestamp: '2026-09-24T06:12:00', employeeId: 'K-1001', employeeName: 'Budi Santoso', systolic: 128, diastolic: 82, temperature: 36.6, spo2: 98, heartRate: 74, weightKg: 74, heightCm: 172, bmi: 25.0, status: 'FIT', source: 'Bluetooth', reason: '' },
-        { id: 'TRX-20260924-002', timestamp: '2026-09-24T06:18:00', employeeId: 'K-1002', employeeName: 'Siti Rahma', systolic: 118, diastolic: 76, temperature: 36.4, spo2: 99, heartRate: 68, weightKg: 54, heightCm: 160, bmi: 21.1, status: 'FIT', source: 'Bluetooth', reason: '' },
-        { id: 'TRX-20260924-003', timestamp: '2026-09-24T06:25:00', employeeId: 'K-1005', employeeName: 'Rudi Hartono', systolic: 148, diastolic: 94, temperature: 37.1, spo2: 96, heartRate: 82, weightKg: 88, heightCm: 175, bmi: 28.7, status: 'UNFIT', source: 'Manual', reason: 'Baterai tensimeter habis' },
-        { id: 'TRX-20260924-004', timestamp: '2026-09-24T06:31:00', employeeId: 'K-1003', employeeName: 'Andi Wijaya', systolic: 132, diastolic: 85, temperature: 36.8, spo2: 97, heartRate: 76, weightKg: 70, heightCm: 168, bmi: 24.8, status: 'FIT', source: 'Bluetooth', reason: '' },
-        { id: 'TRX-20260924-005', timestamp: '2026-09-24T06:40:00', employeeId: 'K-1004', employeeName: 'Dewi Anggraini', systolic: 122, diastolic: 78, temperature: 37.8, spo2: 98, heartRate: 72, weightKg: 58, heightCm: 158, bmi: 23.3, status: 'UNFIT', source: 'Bluetooth', reason: '' },
-        { id: 'TRX-20260924-006', timestamp: '2026-09-24T06:48:00', employeeId: 'K-1006', employeeName: 'Lestari Putri', systolic: 110, diastolic: 70, temperature: 36.5, spo2: 99, heartRate: 66, weightKg: 50, heightCm: 162, bmi: 19.1, status: 'FIT', source: 'Bluetooth', reason: '' },
-        { id: 'TRX-20260924-007', timestamp: '2026-09-24T06:55:00', employeeId: 'K-1007', employeeName: 'Hendra Gunawan', systolic: 136, diastolic: 88, temperature: 36.9, spo2: 97, heartRate: 78, weightKg: 76, heightCm: 170, bmi: 26.3, status: 'FIT', source: 'Bluetooth', reason: '' },
-        { id: 'TRX-20260924-008', timestamp: '2026-09-24T07:02:00', employeeId: 'K-1008', employeeName: 'Maya Sari', systolic: 124, diastolic: 80, temperature: 36.7, spo2: 98, heartRate: 70, weightKg: 52, heightCm: 155, bmi: 21.7, status: 'FIT', source: 'Bluetooth', reason: '' },
-        { id: 'TRX-20260923-010', timestamp: '2026-09-23T06:15:00', employeeId: 'K-1001', employeeName: 'Budi Santoso', systolic: 130, diastolic: 84, temperature: 36.5, spo2: 98, heartRate: 72, weightKg: 74, heightCm: 172, bmi: 25.0, status: 'FIT', source: 'Bluetooth', reason: '' },
-        { id: 'TRX-20260923-011', timestamp: '2026-09-23T06:22:00', employeeId: 'K-1005', employeeName: 'Rudi Hartono', systolic: 145, diastolic: 92, temperature: 36.9, spo2: 95, heartRate: 80, weightKg: 88, heightCm: 175, bmi: 28.7, status: 'UNFIT', source: 'Bluetooth', reason: '' },
-        { id: 'TRX-20260923-012', timestamp: '2026-09-23T06:30:00', employeeId: 'K-1002', employeeName: 'Siti Rahma', systolic: 116, diastolic: 74, temperature: 36.3, spo2: 99, heartRate: 65, weightKg: 54, heightCm: 160, bmi: 21.1, status: 'FIT', source: 'Bluetooth', reason: '' },
-      ],
-      weekly: [
-        { label: 'Sen', fit: 42, unfit: 5 },
-        { label: 'Sel', fit: 45, unfit: 3 },
-        { label: 'Rab', fit: 40, unfit: 7 },
-        { label: 'Kam', fit: 44, unfit: 4 },
-        { label: 'Jum', fit: 46, unfit: 2 },
-        { label: 'Sab', fit: 30, unfit: 2 },
-        { label: 'Min', fit: 12, unfit: 1 },
-      ],
-    };
-
     /* ========== API HELPER (GAS) ========== */
     async function apiPost(action, data) {
-      if (USE_MOCK) {
-        await new Promise((r) => setTimeout(r, 350));
-        if (action === 'login') {
-          if (data.pin === MOCK.pin) return { ok: true, user: MOCK.user };
-          return { ok: false, message: 'PIN salah' };
-        }
-        if (action === 'saveRecord') {
-          const key = String(data.employeeId || '') + '|' + String(data.timestamp || '');
-          MOCK._savedKeys = MOCK._savedKeys || {};
-          if (MOCK._savedKeys[key]) {
-            return Object.assign({ ok: true, duplicate: true }, MOCK._savedKeys[key]);
-          }
-          const id = 'TRX-' + Date.now();
-          MOCK._savedKeys[key] = { id: id, status: calcStatus(Number(data.systolic), Number(data.temperature)) };
-          return { ok: true, id: id, status: MOCK._savedKeys[key].status };
-        }
-        if (action === 'listRecords') {
-          return { ok: true, records: MOCK.records.slice(0, 50) };
-        }
-        if (action === 'listEmployees') {
-          return { ok: true, employees: MOCK.employees };
-        }
-        if (action === 'addEmployee') {
-          let maxNum = 1000;
-          MOCK.employees.forEach((e) => {
-            const m = /^K-(\d+)$/.exec(e.id);
-            if (m && Number(m[1]) > maxNum) maxNum = Number(m[1]);
-          });
-          const now = new Date();
-          const p = String(data.dob || '').split('-').map(Number);
-          let age = now.getFullYear() - p[0];
-          if (now.getMonth() + 1 < p[1] || (now.getMonth() + 1 === p[1] && now.getDate() < p[2])) age--;
-          const grup = String(data.grup || '').trim().toUpperCase();
-          if (!/^[A-D]$/.test(grup)) return { ok: false, message: 'Grup tugas wajib dipilih (A, B, C, atau D)' };
-          const emp = {
-            id: 'K-' + String(maxNum + 1).padStart(4, '0'),
-            cardUid: null,
-            name: String(data.name || '').trim(),
-            unit: String(data.unit || '').trim(),
-            grup: grup,
-            dob: data.dob,
-            heightCm: Number(data.heightCm),
-            age: age,
-          };
-          MOCK.employees.push(emp);
-          return { ok: true, employee: emp };
-        }
-        if (action === 'stats') {
-          const records = MOCK.records.filter((r) => r.timestamp.startsWith('2026-09-24'));
-          return {
-            ok: true,
-            totalToday: records.length,
-            fitToday: records.filter((r) => r.status === 'FIT').length,
-            unfitToday: records.filter((r) => r.status === 'UNFIT').length,
-            avgMinutes: 82,
-            weekly: MOCK.weekly,
-          };
-        }
-        if (action === 'listDutyOfficers') {
-          const overrides = MOCK._dutyOverrides || {};
-          const officers = MOCK.dutyOfficers.map((o) => {
-            const ov = overrides[o.id] || {};
-            return Object.assign({}, o, { name: ov.name || o.name, role: ov.role || o.role });
-          });
-          return { ok: true, officers: officers };
-        }
-        if (action === 'saveDutyOfficer') {
-          MOCK._dutyOverrides = MOCK._dutyOverrides || {};
-          let newName = String(data.name || '').trim();
-          let newRole = String(data.role || '').trim();
-          const orig = MOCK.dutyOfficers.find((x) => x.id === data.id);
-          if (!orig) return { ok: false, message: 'Petugas tidak ditemukan' };
-          if (!newName) newName = orig.name;
-          if (!newRole) newRole = orig.role;
-          MOCK._dutyOverrides[data.id] = { name: newName, role: newRole };
-          return { ok: true, officer: Object.assign({}, orig, { name: newName, role: newRole }) };
-        }
-        if (action === 'saveEmployeeCard') {
-          const employeeId = String(data.employeeId || '').trim();
-          let cardUid = String(data.cardUid || '');
-          if (!employeeId) return { ok: false, message: 'ID karyawan wajib diisi' };
-          if (cardUid !== '') {
-            cardUid = cardUid.replace(/[-:\s]/g, '').toUpperCase();
-            if (!/^[A-Z0-9]{4,32}$/.test(cardUid)) return { ok: false, message: 'Format UID tidak valid (4-32 karakter huruf/angka)' };
-          }
-          const empIdx = MOCK.employees.findIndex((e) => e.id === employeeId);
-          if (empIdx === -1) return { ok: false, message: 'Karyawan tidak ditemukan' };
-          if (cardUid !== '') {
-            const dup = MOCK.employees.find((e) => e.id !== employeeId && String(e.cardUid || '').toUpperCase() === cardUid);
-            if (dup) return { ok: false, message: 'Kartu sudah terdaftar untuk ' + dup.name + ' (' + dup.id + ')' };
-          }
-          MOCK.employees[empIdx].cardUid = cardUid === '' ? null : cardUid;
-          return { ok: true, employee: MOCK.employees[empIdx] };
-        }
-        return { ok: true };
-      }
-
       const endpoint = window.GAS_ENDPOINT || '';
       const payload = JSON.stringify({ action, data, apiKey: window.GAS_API_KEY || '' });
       const RETRY_OK = ['login','listEmployees','listRecords','listDutyOfficers','stats','saveRecord','saveEmployeeCard','saveDutyOfficer'];
@@ -253,19 +107,8 @@
       try {
         const id = sessionStorage.getItem('sf2w_duty');
         if (!id) return null;
-        const o = MOCK.dutyOfficers.find((x) => x.id === id);
-        if (!o) return null;
-        let overrides = {};
-        try {
-          overrides = JSON.parse(sessionStorage.getItem('sf2w_duty_overrides') || '{}') || {};
-        } catch(e) {
-          try {
-            const names = JSON.parse(sessionStorage.getItem('sf2w_duty_names') || '{}') || {};
-            if (names[o.id]) overrides[o.id] = { name: names[o.id] };
-          } catch(ee) {}
-        }
-        const ov = overrides[o.id];
-        return ov ? Object.assign({}, o, { name: ov.name || o.name, role: ov.role || o.role }) : o;
+        const overrides = JSON.parse(sessionStorage.getItem('sf2w_duty_overrides') || '{}') || {};
+        return overrides[id] || null;
       } catch (e) {
         return null;
       }
@@ -1321,9 +1164,9 @@
           loggedIn: sessionStorage.getItem('sf2w_session') === '1',
           user: JSON.parse(sessionStorage.getItem('sf2w_user') || 'null'),
         });
-        const employees = ref(MOCK.employees.slice());
+        const employees = ref([]);
         const records = ref([]);
-        const stats = ref({ totalToday: 0, fitToday: 0, unfitToday: 0, avgMinutes: 0, weekly: MOCK.weekly });
+        const stats = ref({ totalToday: 0, fitToday: 0, unfitToday: 0, avgMinutes: 0, weekly: [] });
         const sidebarOpen = ref(true);
 
         function onHash() {
@@ -1353,7 +1196,7 @@
           if (res.ok && res.officers) {
             const overrides = {};
             res.officers.forEach((o) => {
-              overrides[o.id] = { name: o.name, role: o.role };
+              overrides[o.id] = { id: o.id, name: o.name, role: o.role, initials: o.initials };
             });
             sessionStorage.setItem('sf2w_duty_overrides', JSON.stringify(overrides));
             window.dispatchEvent(new CustomEvent('sf2w:duty-changed', { detail: { id: sessionStorage.getItem('sf2w_duty') || '' } }));
@@ -1447,6 +1290,7 @@
             :auth="auth"
             :page="route.page"
             :sidebar-open="sidebarOpen"
+            :employees="employees"
             @toggle-sidebar="sidebarOpen = !sidebarOpen"
             @logout="doLogout"
             @navigate="navigate"
@@ -1563,7 +1407,7 @@
 
     /* ========== APP SHELL ========== */
     const AppShell = {
-      props: ['auth', 'page', 'sidebarOpen'],
+      props: ['auth', 'page', 'sidebarOpen', 'employees'],
       emits: ['toggle-sidebar', 'logout', 'navigate'],
       setup(props, { emit }) {
         const search = ref('');
@@ -1586,10 +1430,9 @@
           try { return JSON.parse(sessionStorage.getItem('sf2w_duty_overrides') || '{}') || {}; } catch (e) { return {}; }
         })());
         const duty = computed(() => {
-          const o = MOCK.dutyOfficers.find((x) => x.id === dutyId.value);
-          if (!o) return null;
-          const ov = dutyOverrides.value[o.id];
-          return ov ? Object.assign({}, o, { name: ov.name || o.name, role: ov.role || o.role }) : o;
+          const id = dutyId.value;
+          if (!id) return null;
+          return dutyOverrides.value[id] || null;
         });
         function onDutyChanged() {
           dutyId.value = sessionStorage.getItem('sf2w_duty') || '';
@@ -1606,7 +1449,7 @@
               searchResults.value = [];
               return;
             }
-            searchResults.value = MOCK.employees
+            searchResults.value = (props.employees || [])
               .filter((e) => e.name.toLowerCase().includes(q) || e.id.toLowerCase().includes(q) || (e.cardUid && e.cardUid.toLowerCase().includes(q)))
               .slice(0, 5);
           }, 300);
@@ -3057,7 +2900,7 @@
     /* ========== PENGATURAN ========== */
     const PengaturanPage = {
       setup() {
-        const officers = ref(MOCK.dutyOfficers.slice());
+        const officers = ref([]);
         const selectedId = ref(sessionStorage.getItem('sf2w_duty') || '');
         const editName = ref('');
         const editRole = ref('');
@@ -3083,7 +2926,7 @@
             officers.value = res.officers;
             const overrides = {};
             res.officers.forEach((o) => {
-              overrides[o.id] = { name: o.name, role: o.role };
+              overrides[o.id] = { id: o.id, name: o.name, role: o.role, initials: o.initials };
             });
             sessionStorage.setItem('sf2w_duty_overrides', JSON.stringify(overrides));
             window.dispatchEvent(new CustomEvent('sf2w:duty-changed', { detail: { id: selectedId.value } }));
@@ -3129,7 +2972,7 @@
             
             let overrides = {};
             try { overrides = JSON.parse(sessionStorage.getItem('sf2w_duty_overrides') || '{}') || {}; } catch(e){}
-            overrides[o.id] = { name: res.officer.name, role: res.officer.role };
+            overrides[o.id] = { id: o.id, name: res.officer.name, role: res.officer.role, initials: res.officer.initials || o.initials };
             sessionStorage.setItem('sf2w_duty_overrides', JSON.stringify(overrides));
             
             window.dispatchEvent(new CustomEvent('sf2w:duty-changed', { detail: { id: o.id } }));
