@@ -75,7 +75,7 @@
     async function apiPost(action, data) {
       const endpoint = window.GAS_ENDPOINT || '';
       const payload = JSON.stringify({ action, data, apiKey: window.GAS_API_KEY || '' });
-      const RETRY_OK = ['login','listEmployees','listRecords','listDutyOfficers','stats','saveRecord','saveEmployeeCard','saveDutyOfficer'];
+      const RETRY_OK = ['login','listEmployees','listRecords','listUsers','stats','saveRecord','saveEmployeeCard','checkSetup'];
       const maxTries = RETRY_OK.includes(action) ? 3 : 1;
       let lastErr = 'Koneksi ke server gagal — periksa internet lalu coba lagi.';
       
@@ -101,17 +101,6 @@
         }
       }
       return { ok: false, message: lastErr };
-    }
-
-    function readDuty() {
-      try {
-        const id = sessionStorage.getItem('sf2w_duty');
-        if (!id) return null;
-        const overrides = JSON.parse(sessionStorage.getItem('sf2w_duty_overrides') || '{}') || {};
-        return overrides[id] || null;
-      } catch (e) {
-        return null;
-      }
     }
 
     /* ========== DOMAIN HELPERS ========== */
@@ -1191,18 +1180,6 @@
           if (res.ok) employees.value = res.employees || [];
         }
 
-        async function loadDutyOfficers() {
-          const res = await apiPost('listDutyOfficers', {});
-          if (res.ok && res.officers) {
-            const overrides = {};
-            res.officers.forEach((o) => {
-              overrides[o.id] = { id: o.id, name: o.name, role: o.role, initials: o.initials };
-            });
-            sessionStorage.setItem('sf2w_duty_overrides', JSON.stringify(overrides));
-            window.dispatchEvent(new CustomEvent('sf2w:duty-changed', { detail: { id: sessionStorage.getItem('sf2w_duty') || '' } }));
-          }
-        }
-
         function onEmployeeAdded(e) {
           const emp = e.detail;
           if (!emp || !emp.id) return;
@@ -1211,8 +1188,8 @@
           else employees.value.push(emp);
         }
 
-        async function doLogin(pin) {
-          const res = await apiPost('login', { pin });
+        async function doLogin(name, password) {
+          const res = await apiPost('login', { name, password });
           if (res.ok) {
             auth.loggedIn = true;
             auth.user = res.user;
@@ -1262,7 +1239,7 @@
           window.addEventListener('hashchange', onHash);
           window.addEventListener('sf2w:employee-added', onEmployeeAdded);
           if (auth.loggedIn) {
-            await Promise.all([loadRecords(), loadStats(), loadEmployees(), loadDutyOfficers()]);
+            await Promise.all([loadRecords(), loadStats(), loadEmployees()]);
           }
           onHash();
         });
@@ -1273,7 +1250,7 @@
         });
 
         watch(() => auth.loggedIn, async (v) => {
-          if (v) await Promise.all([loadRecords(), loadStats(), loadEmployees(), loadDutyOfficers()]);
+          if (v) await Promise.all([loadRecords(), loadStats(), loadEmployees()]);
         });
 
         return {
@@ -1298,6 +1275,7 @@
             <DashboardPage v-if="route.page === 'dashboard'" :stats="stats" :records="records" @navigate="navigate" />
             <PemeriksaanPage
               v-else-if="route.page === 'pemeriksaan'"
+              :auth="auth"
               :employees="employees"
               :on-save="saveRecord"
               @navigate="navigate"
@@ -1307,7 +1285,7 @@
               :records="records"
               @refresh="loadRecords"
             />
-            <PengaturanPage v-else-if="route.page === 'pengaturan'" />
+            <PengaturanPage v-else-if="route.page === 'pengaturan'" :auth="auth" />
             <DashboardPage v-else :stats="stats" :records="records" @navigate="navigate" />
           </AppShell>
           <ToastHost />
@@ -1338,26 +1316,52 @@
     const LoginPage = {
       props: ['onLogin'],
       setup(props) {
-        const pin = ref('');
+        const name = ref('');
+        const password = ref('');
         const loading = ref(false);
         const error = ref('');
+        
+        const checkingSetup = ref(true);
+        const needsSetup = ref(false);
+
+        onMounted(async () => {
+          const res = await apiPost('checkSetup', {});
+          if (res.ok) {
+            needsSetup.value = res.needsSetup;
+          }
+          checkingSetup.value = false;
+        });
 
         async function submit() {
-          if (pin.value.length < 4) {
-            error.value = 'PIN minimal 4 digit';
+          if (!name.value) {
+            error.value = 'Nama wajib diisi';
+            return;
+          }
+          if (password.value.length < 4) {
+            error.value = 'Password minimal 4 karakter';
             return;
           }
           loading.value = true;
           error.value = '';
-          const res = await props.onLogin(pin.value);
-          if (!res.ok) {
-            error.value = (res.message === 'PIN salah') ? 'PIN salah. Coba lagi.' : (res.message || 'Login gagal.');
+          
+          if (needsSetup.value) {
+            const res = await apiPost('setupAdmin', { name: name.value, password: password.value });
+            if (res.ok && res.user) {
+              await props.onLogin(name.value, password.value);
+            } else {
+              error.value = res.message || 'Gagal membuat admin pertama.';
+              loading.value = false;
+            }
+          } else {
+            const res = await props.onLogin(name.value, password.value);
+            if (!res.ok) {
+              error.value = res.message || 'Login gagal.';
+              loading.value = false;
+            }
           }
-          loading.value = false;
-          pin.value = '';
         }
 
-        return { pin, loading, error, submit };
+        return { name, password, loading, error, submit, checkingSetup, needsSetup };
       },
       template: `
         <div class="min-h-screen flex items-center justify-center bg-canvas page-enter px-4 relative overflow-hidden">
@@ -1374,32 +1378,47 @@
               </div>
             </div>
 
-            <h2 class="text-lg font-bold text-ink mb-1">Masuk</h2>
-            <p class="text-sm text-muted mb-6">Masukkan PIN perawat untuk memulai shift.</p>
+            <div v-if="checkingSetup" class="py-10 flex justify-center">
+              <span class="spinner w-8 h-8 border-4 border-primary border-t-transparent"></span>
+            </div>
+            <div v-else>
+              <h2 class="text-lg font-bold text-ink mb-1">{{ needsSetup ? 'Setup Pertama' : 'Masuk' }}</h2>
+              <p class="text-sm text-muted mb-6">{{ needsSetup ? 'Buat akun Admin pertama Anda untuk mulai.' : 'Masukkan nama dan password untuk memulai shift.' }}</p>
 
-            <form @submit.prevent="submit">
-              <label class="block text-sm font-medium text-ink mb-2" for="pin">PIN</label>
-              <input
-                id="pin"
-                v-model="pin"
-                type="password"
-                inputmode="numeric"
-                maxlength="8"
-                placeholder="••••"
-                class="w-full min-touch px-4 py-3 rounded-md border border-line bg-surface text-ink placeholder-muted focus:outline-none focus:border-primary mb-2"
-              />
-              <p v-if="error" class="text-sm text-danger mb-3">{{ error }}</p>
-              <button
-                type="submit"
-                :disabled="loading"
-                class="w-full min-touch mt-2 rounded-md bg-primary text-white font-semibold hover:opacity-90 disabled:opacity-60 flex items-center justify-center gap-2"
-              >
-                <span v-if="loading" class="spinner"></span>
-                {{ loading ? 'Memeriksa…' : 'Masuk' }}
-              </button>
-            </form>
+              <form @submit.prevent="submit">
+                <div class="mb-3">
+                  <label class="block text-sm font-medium text-ink mb-2" for="name">Nama</label>
+                  <input
+                    id="name"
+                    v-model="name"
+                    type="text"
+                    placeholder="mis. Budi"
+                    class="w-full min-touch px-4 py-3 rounded-md border border-line bg-surface text-ink placeholder-muted focus:outline-none focus:border-primary"
+                  />
+                </div>
+                <div class="mb-4">
+                  <label class="block text-sm font-medium text-ink mb-2" for="pwd">Password</label>
+                  <input
+                    id="pwd"
+                    v-model="password"
+                    type="password"
+                    placeholder="••••"
+                    class="w-full min-touch px-4 py-3 rounded-md border border-line bg-surface text-ink placeholder-muted focus:outline-none focus:border-primary"
+                  />
+                </div>
+                <p v-if="error" class="text-sm text-danger mb-3">{{ error }}</p>
+                <button
+                  type="submit"
+                  :disabled="loading"
+                  class="w-full min-touch mt-2 rounded-md bg-primary text-white font-semibold hover:opacity-90 disabled:opacity-60 flex items-center justify-center gap-2"
+                >
+                  <span v-if="loading" class="spinner"></span>
+                  {{ loading ? 'Memproses…' : (needsSetup ? 'Buat Admin' : 'Masuk') }}
+                </button>
+              </form>
+            </div>
 
-            <p class="text-xs text-muted mt-6 text-center">Demo PIN: <span class="font-semibold text-ink">1234</span> · Chrome / Edge direkomendasikan (Web Bluetooth)</p>
+            <p class="text-xs text-muted mt-6 text-center">Chrome / Edge direkomendasikan (Web Bluetooth)</p>
           </div>
         </div>
       `,
@@ -1423,23 +1442,6 @@
           { key: 'dashboard', label: 'Laporan', icon: 'chart' },
           { key: 'pengaturan', label: 'Pengaturan', icon: 'cog' },
         ];
-
-        // Petugas jaga (dipilih di halaman Pengaturan) — header mengikuti pilihan + nama suntingan.
-        const dutyId = ref(sessionStorage.getItem('sf2w_duty') || '');
-        const dutyOverrides = ref((() => {
-          try { return JSON.parse(sessionStorage.getItem('sf2w_duty_overrides') || '{}') || {}; } catch (e) { return {}; }
-        })());
-        const duty = computed(() => {
-          const id = dutyId.value;
-          if (!id) return null;
-          return dutyOverrides.value[id] || null;
-        });
-        function onDutyChanged() {
-          dutyId.value = sessionStorage.getItem('sf2w_duty') || '';
-          try { dutyOverrides.value = JSON.parse(sessionStorage.getItem('sf2w_duty_overrides') || '{}') || {}; } catch (e) { dutyOverrides.value = {}; }
-        }
-        window.addEventListener('sf2w:duty-changed', onDutyChanged);
-        onUnmounted(() => window.removeEventListener('sf2w:duty-changed', onDutyChanged));
 
         function onSearch() {
           if (debounceTimer) clearTimeout(debounceTimer);
@@ -1474,7 +1476,7 @@
           cog: 'M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z',
         };
 
-        return { search, searchResults, mainMenu, genMenu, onSearch, pickEmployee, go, icons, duty };
+        return { search, searchResults, mainMenu, genMenu, onSearch, pickEmployee, go, icons };
       },
       template: `
         <div class="min-h-screen flex bg-canvas">
@@ -1587,11 +1589,11 @@
 
               <div class="flex items-center gap-3 pl-2 border-l border-line">
                 <div class="w-10 h-10 rounded-full bg-iconbg text-primary font-bold flex items-center justify-center text-sm">
-                  {{ (duty ? duty.initials : auth.user?.initials) || 'P' }}
+                  {{ auth.user?.initials || 'P' }}
                 </div>
                 <div class="hidden sm:block leading-tight">
-                  <div class="text-sm font-semibold text-ink">{{ (duty ? duty.name : auth.user?.name) || 'Perawat' }}</div>
-                  <div class="text-xs text-muted">{{ (duty ? duty.role : auth.user?.role) || '' }}</div>
+                  <div class="text-sm font-semibold text-ink">{{ auth.user?.name || 'Perawat' }}</div>
+                  <div class="text-xs text-muted capitalize">{{ auth.user?.role || '' }}</div>
                 </div>
               </div>
             </header>
@@ -1806,7 +1808,7 @@
     const Q_KEYS = Q_LABELS.map((_, i) => 'q' + (i + 1));
 
     const PemeriksaanPage = {
-      props: ['employees', 'onSave'],
+      props: ['auth', 'employees', 'onSave'],
       emits: ['navigate'],
       setup(props, { emit }) {
         const query = ref('');
@@ -2334,7 +2336,7 @@
             return;
           }
           saving.value = true;
-          const duty = readDuty();
+          const user = props.auth?.user || {};
           const isManual = Object.values(manualFields).some(Boolean);
           const isSimulated = Object.keys(devices).some((k) => devices[k].measured && devices[k].simulated);
           const isBluetooth = Object.keys(devices).some((k) => devices[k].measured && !devices[k].simulated);
@@ -2359,8 +2361,8 @@
             reason: isManual
               ? (form.reason || 'Input manual tanpa alasan')
               : (isSimulated ? 'Pengukuran simulasi (GATT tidak tersedia)' : ''),
-            examiner: duty ? duty.name : '',
-            examinerRole: duty ? duty.role : '',
+            examiner: user.name || '',
+            examinerRole: user.role || '',
             answers: answers,
           };
           try {
@@ -2899,11 +2901,14 @@
 
     /* ========== PENGATURAN ========== */
     const PengaturanPage = {
-      setup() {
-        const officers = ref([]);
-        const selectedId = ref(sessionStorage.getItem('sf2w_duty') || '');
-        const editName = ref('');
-        const editRole = ref('');
+      props: ['auth'],
+      setup(props) {
+        const users = ref([]);
+        const newUserName = ref('');
+        const newUserRole = ref('');
+        const newUserPwd = ref('');
+        const userLoading = ref(false);
+        const userError = ref('');
 
         const newEmp = reactive({
           rf: '',
@@ -2921,77 +2926,58 @@
 
         onMounted(async () => {
           window.addEventListener('keydown', onScanKeyDown);
-          const res = await apiPost('listDutyOfficers', {});
-          if (res.ok && res.officers) {
-            officers.value = res.officers;
-            const overrides = {};
-            res.officers.forEach((o) => {
-              overrides[o.id] = { id: o.id, name: o.name, role: o.role, initials: o.initials };
-            });
-            sessionStorage.setItem('sf2w_duty_overrides', JSON.stringify(overrides));
-            window.dispatchEvent(new CustomEvent('sf2w:duty-changed', { detail: { id: selectedId.value } }));
-            syncEdit();
+          if (props.auth?.user?.role === 'admin') {
+            await loadUsers();
           }
         });
+
+        async function loadUsers() {
+          const res = await apiPost('listUsers', {});
+          if (res.ok && res.users) {
+            users.value = res.users;
+          }
+        }
+
+        async function submitNewUser() {
+          const name = newUserName.value.trim();
+          const role = newUserRole.value;
+          const pwd = newUserPwd.value;
+
+          if (!name) { userError.value = 'Nama wajib diisi'; return; }
+          if (!role) { userError.value = 'Role wajib dipilih'; return; }
+          if (pwd.length < 4) { userError.value = 'Password minimal 4 karakter'; return; }
+
+          userLoading.value = true;
+          userError.value = '';
+
+          const res = await apiPost('addUser', { name, role, password: pwd });
+          if (res.ok && res.user) {
+            users.value.push(res.user);
+            showToast('Pengguna berhasil ditambahkan', 'success');
+            newUserName.value = '';
+            newUserRole.value = '';
+            newUserPwd.value = '';
+          } else {
+            userError.value = res.message || 'Gagal menambahkan pengguna';
+          }
+          userLoading.value = false;
+        }
+
+        async function deleteUser(id) {
+          if (!confirm('Hapus pengguna ini?')) return;
+          const res = await apiPost('deleteUser', { id });
+          if (res.ok) {
+            users.value = users.value.filter(u => u.id !== id);
+            showToast('Pengguna berhasil dihapus', 'success');
+          } else {
+            showToast(res.message || 'Gagal menghapus pengguna', 'error');
+          }
+        }
 
         onUnmounted(() => {
           window.removeEventListener('keydown', onScanKeyDown);
           if (scanTimer) clearTimeout(scanTimer);
         });
-
-        const selected = computed(() => {
-          const o = officers.value.find((x) => x.id === selectedId.value);
-          return o ? Object.assign({}, o) : null;
-        });
-
-        function syncEdit() {
-          const o = officers.value.find((x) => x.id === selectedId.value);
-          editName.value = o ? o.name : '';
-          editRole.value = o ? o.role : '';
-        }
-        syncEdit();
-
-        function select(id) {
-          selectedId.value = id;
-          sessionStorage.setItem('sf2w_duty', id);
-          syncEdit();
-          const o = officers.value.find((x) => x.id === id);
-          window.dispatchEvent(new CustomEvent('sf2w:duty-changed', { detail: { id: id } }));
-          showToast(o ? 'Petugas jaga: ' + o.name : 'Petugas jaga dipilih.');
-        }
-
-        async function saveOfficer() {
-          const o = officers.value.find((x) => x.id === selectedId.value);
-          if (!o) return;
-          const trimmedName = (editName.value || '').trim();
-          
-          const res = await apiPost('saveDutyOfficer', { id: o.id, name: trimmedName, role: editRole.value });
-          if (res.ok && res.officer) {
-            const i = officers.value.findIndex(x => x.id === o.id);
-            if (i >= 0) officers.value.splice(i, 1, res.officer);
-            
-            let overrides = {};
-            try { overrides = JSON.parse(sessionStorage.getItem('sf2w_duty_overrides') || '{}') || {}; } catch(e){}
-            overrides[o.id] = { id: o.id, name: res.officer.name, role: res.officer.role, initials: res.officer.initials || o.initials };
-            sessionStorage.setItem('sf2w_duty_overrides', JSON.stringify(overrides));
-            
-            window.dispatchEvent(new CustomEvent('sf2w:duty-changed', { detail: { id: o.id } }));
-            syncEdit();
-            showToast(trimmedName ? 'Data petugas diperbarui.' : 'Data dikembalikan ke asli.');
-          } else {
-            showToast(res.message || 'Gagal menyimpan perubahan.', 'error');
-            syncEdit();
-          }
-        }
-
-        function clearSelection() {
-          selectedId.value = '';
-          sessionStorage.removeItem('sf2w_duty');
-          editName.value = '';
-          editRole.value = '';
-          window.dispatchEvent(new CustomEvent('sf2w:duty-changed', { detail: { id: '' } }));
-          showToast('Pilihan petugas jaga dikosongkan.');
-        }
 
         function startEmpScan() {
           scanActive.value = true;
@@ -3086,7 +3072,7 @@
         }
 
         return { 
-          officers, selectedId, selected, editName, editRole, select, saveOfficer, clearSelection,
+          users, newUserName, newUserRole, newUserPwd, userLoading, userError, submitNewUser, deleteUser,
           newEmp, addLoading, addError, scanActive, startEmpScan, submitNewEmployee
         };
       },
@@ -3097,82 +3083,63 @@
             <p class="text-sm text-muted">Konfigurasi sistem dan manajemen data dasar.</p>
           </div>
 
-          <div class="bg-surface rounded-lg shadow-card border border-line p-5 max-w-2xl">
-            <div class="flex flex-wrap items-start justify-between gap-3 mb-4">
-              <div>
-                <p class="text-xs font-semibold text-muted uppercase tracking-wider">Dokter / Perawat Jaga</p>
-                <p class="text-sm text-muted mt-1">Petugas yang dipilih bertanggung jawab atas pemeriksaan shift ini.</p>
-              </div>
-              <button
-                v-if="selected"
-                class="min-touch px-3 py-2 rounded-md border border-line text-sm font-medium text-danger hover:bg-canvas"
-                @click="clearSelection"
-              >
-                Kosongkan
-              </button>
+          <div v-if="auth?.user?.role === 'admin'" class="bg-surface rounded-lg shadow-card border border-line p-5 max-w-2xl">
+            <div class="mb-4">
+              <p class="text-xs font-semibold text-muted uppercase tracking-wider">Manajemen Pengguna</p>
+              <p class="text-sm text-muted mt-1">Daftar pengguna yang dapat login ke dalam sistem.</p>
             </div>
 
-            <div class="space-y-2">
-              <button
-                v-for="o in officers"
-                :key="o.id"
-                class="w-full flex items-center gap-3 p-3 rounded-lg border text-left min-touch transition"
-                :class="selectedId === o.id ? 'border-primary bg-iconbg' : 'border-line hover:bg-canvas'"
-                @click="select(o.id)"
-              >
-                <span
-                  class="w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold shrink-0"
-                  :class="selectedId === o.id ? 'bg-primary text-white' : 'bg-canvas text-muted'"
-                >{{ o.initials }}</span>
-                <span class="min-w-0 flex-1">
-                  <span class="block text-sm font-semibold text-ink truncate">{{ o.name }}</span>
-                  <span class="block text-xs text-muted">{{ o.role }} · {{ o.id }}</span>
-                </span>
-                <svg
-                  v-if="selectedId === o.id"
-                  class="w-5 h-5 text-primary shrink-0"
-                  fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"
-                ><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
-              </button>
-            </div>
-
-            <div v-if="selected" class="mt-4 rounded-md bg-canvas border border-line px-4 py-3 space-y-3">
-              <div class="flex items-center gap-3">
-                <span class="w-2 h-2 rounded-full bg-success shrink-0"></span>
-                <p class="text-sm text-ink">
-                  Sedang jaga: <span class="font-semibold">{{ selected.name }}</span>
-                  <span class="text-muted">({{ selected.role }})</span>
-                </p>
-              </div>
-              <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div>
-                  <label class="block text-xs font-medium text-muted mb-1" for="duty-name">Nama (bisa disunting)</label>
-                  <input
-                    id="duty-name"
-                    v-model="editName"
-                    @change="saveOfficer"
-                    type="text"
-                    placeholder="Kosongkan untuk nama asli"
-                    class="w-full min-touch px-3 py-2.5 rounded-md border border-line bg-surface text-sm text-ink placeholder-muted focus:outline-none focus:border-primary"
-                  />
+            <div class="space-y-2 mb-6 max-h-60 overflow-y-auto">
+              <div v-for="u in users" :key="u.id" class="flex items-center justify-between p-3 rounded-lg border border-line bg-canvas">
+                <div class="flex items-center gap-3">
+                  <span class="w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold bg-iconbg text-primary shrink-0">{{ u.initials }}</span>
+                  <div>
+                    <span class="block text-sm font-semibold text-ink">{{ u.name }}</span>
+                    <span class="block text-xs text-muted capitalize">{{ u.role }}</span>
+                  </div>
                 </div>
-                <div>
-                  <label class="block text-xs font-medium text-muted mb-1" for="duty-role">Jabatan</label>
-                  <select
-                    id="duty-role"
-                    v-model="editRole"
-                    @change="saveOfficer"
-                    class="w-full min-touch px-3 py-2.5 rounded-md border border-line bg-surface text-sm text-ink focus:outline-none focus:border-primary"
-                  >
-                    <option value="Dokter">Dokter</option>
-                    <option value="Perawat">Perawat</option>
+                <button
+                  class="p-2 text-danger hover:bg-danger/10 rounded-md transition"
+                  title="Hapus"
+                  @click="deleteUser(u.id)"
+                >
+                  <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                </button>
+              </div>
+            </div>
+
+            <div class="border-t border-line pt-4">
+              <p class="text-sm font-semibold text-ink mb-3">Tambah Pengguna Baru</p>
+              <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div class="sm:col-span-1">
+                  <label class="block text-xs font-medium text-muted mb-1">Nama Lengkap</label>
+                  <input v-model="newUserName" type="text" class="w-full min-touch px-3 py-2 rounded-md border border-line bg-surface text-sm focus:border-primary focus:outline-none" />
+                </div>
+                <div class="sm:col-span-1">
+                  <label class="block text-xs font-medium text-muted mb-1">Role</label>
+                  <select v-model="newUserRole" class="w-full min-touch px-3 py-2 rounded-md border border-line bg-surface text-sm focus:border-primary focus:outline-none">
+                    <option value="">Pilih...</option>
+                    <option value="admin">Admin</option>
+                    <option value="perawat">Perawat</option>
+                    <option value="dokter">Dokter</option>
                   </select>
                 </div>
+                <div class="sm:col-span-1">
+                  <label class="block text-xs font-medium text-muted mb-1">Password</label>
+                  <input v-model="newUserPwd" type="password" class="w-full min-touch px-3 py-2 rounded-md border border-line bg-surface text-sm focus:border-primary focus:outline-none" />
+                </div>
               </div>
-              <p class="text-xs text-muted mt-1">Nama hasil sunting menggantikan tampilan daftar, kartu jaga, dan header. Kosongkan nama lalu pindah fokus untuk mengembalikan data asli dari server.</p>
+              <p v-if="userError" class="text-sm text-danger mt-2">{{ userError }}</p>
+              <div class="mt-3 flex justify-end">
+                <button
+                  class="min-touch px-4 py-2 bg-primary text-white text-sm font-semibold rounded-md hover:opacity-90 disabled:opacity-50"
+                  :disabled="userLoading"
+                  @click="submitNewUser"
+                >
+                  {{ userLoading ? 'Menyimpan...' : 'Tambah' }}
+                </button>
+              </div>
             </div>
-
-            <p class="text-xs text-muted mt-4">Tersimpan di database (Google Sheets). Pilihan jaga otomatis tersimpan selama sesi shift berjalan (sessionStorage).</p>
           </div>
 
           <div class="bg-surface rounded-lg shadow-card border border-line p-5 max-w-2xl mt-6">

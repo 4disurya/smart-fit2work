@@ -1,33 +1,14 @@
-const API_ACTIONS = ['login', 'saveRecord', 'listRecords', 'listEmployees', 'addEmployee', 'stats', 'listDutyOfficers', 'saveDutyOfficer', 'saveEmployeeCard'];
+const API_ACTIONS = ['login', 'saveRecord', 'listRecords', 'listEmployees', 'addEmployee', 'stats', 'listUsers', 'addUser', 'deleteUser', 'checkSetup', 'setupAdmin', 'saveEmployeeCard'];
 const DEFAULT_API_KEY = 'DEV_KEY';
 const DEFAULT_SPREADSHEET_ID = '1K-XEE97ddfdZG6t3br76bzLSQB4R6VFZQT9SbAAJb2E';
-const DEFAULT_PIN = '1234';
-const DEFAULT_USER = { name: 'Ns. Ayu Lestari', role: 'Perawat', email: 'ayu.lestari@tpknm.id', initials: 'AL' };
 
 const RECORD_HEADERS = ['id', 'timestamp', 'employeeId', 'employeeName', 'systolic', 'diastolic', 'temperature', 'spo2', 'heartRate', 'weightKg', 'heightCm', 'bmi', 'status', 'source', 'reason', 'examiner', 'examinerRole'];
 const ANSWER_KEYS = ['q1', 'q2', 'q3', 'q4', 'q5', 'q6', 'q7', 'q8', 'q9', 'q10'];
 const ANSWERS_HEADERS = ['id', 'timestamp', 'employeeId', 'employeeName'].concat(ANSWER_KEYS);
 const EMP_HEADERS = ['id', 'Nomor kartu RF', 'Nama', 'Unit', 'Grup Tugas', 'Tanggal Lahir', 'Tinggi Badan'];
 const EMP_KEYS = ['id', 'cardUid', 'name', 'unit', 'grup', 'dob', 'heightCm'];
-const DEFAULT_EMPLOYEES = [
-  ['K-1001', null, 'Budi Santoso', 'HSSE', 'A', '1992-01-01', 172],
-  ['K-1002', null, 'Siti Rahma', 'Produksi', 'A', '1998-01-01', 160],
-  ['K-1003', null, 'Andi Wijaya', 'Maintenance', 'B', '1985-01-01', 168],
-  ['K-1004', null, 'Dewi Anggraini', 'Logistik', 'A', '1995-01-01', 158],
-  ['K-1005', null, 'Rudi Hartono', 'Produksi', 'C', '1981-01-01', 175],
-  ['K-1006', null, 'Lestari Putri', 'HRD', 'A', '2000-01-01', 162],
-  ['K-1007', null, 'Hendra Gunawan', 'Maintenance', 'B', '1988-01-01', 170],
-  ['K-1008', null, 'Maya Sari', 'Logistik', 'A', '1997-01-01', 155],
-];
 
-const DUTY_HEADERS = ['id', 'name', 'role', 'initials', 'defaultName', 'defaultRole'];
-const DEFAULT_DUTY_OFFICERS = [
-  ['DOC-01', 'dr. Pratama Wijaya, Sp.OK', 'Dokter', 'PW', 'dr. Pratama Wijaya, Sp.OK', 'Dokter'],
-  ['DOC-02', 'dr. Ratna Kusuma, Sp.PD', 'Dokter', 'RK', 'dr. Ratna Kusuma, Sp.PD', 'Dokter'],
-  ['NUR-01', 'Ns. Ayu Lestari, S.Kep', 'Perawat', 'AL', 'Ns. Ayu Lestari, S.Kep', 'Perawat'],
-  ['NUR-02', 'Ns. Budi Hartono, S.Kep', 'Perawat', 'BH', 'Ns. Budi Hartono, S.Kep', 'Perawat'],
-  ['NUR-03', 'Ns. Siti Rahma, S.Kep', 'Perawat', 'SR', 'Ns. Siti Rahma, S.Kep', 'Perawat'],
-];
+const DUTY_HEADERS = ['id', 'Nama', 'Role', 'Password'];
 
 const STR_REQUIRED = [
   ['timestamp', 'Timestamp'],
@@ -62,19 +43,6 @@ function prop_(key) {
 function apiKeyOk_(provided) {
   const expected = prop_('API_KEY') || DEFAULT_API_KEY;
   return String(provided === undefined || provided === null ? '' : provided) === expected;
-}
-
-function pinMap_() {
-  const raw = prop_('PIN_MAP');
-  if (raw) {
-    try {
-      const map = JSON.parse(raw);
-      if (map && typeof map === 'object') return map;
-    } catch (e) {}
-  }
-  const def = {};
-  def[DEFAULT_PIN] = DEFAULT_USER;
-  return def;
 }
 
 function ensureHeaders_(sh, headers) {
@@ -306,21 +274,51 @@ function makeRecordId_(rows) {
   return id;
 }
 
+function hashPassword_(pwd) {
+  const bytes = Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256, pwd, Utilities.Charset.UTF_8);
+  return bytes.map(function(b) {
+    let hex = (b < 0 ? b + 256 : b).toString(16);
+    return hex.length === 1 ? '0' + hex : hex;
+  }).join('');
+}
+
+function getInitials_(name) {
+  const parts = String(name || '').trim().split(/\s+/);
+  if (parts.length === 0 || !parts[0]) return 'P';
+  if (parts.length === 1) return parts[0].substring(0, 2).toUpperCase();
+  return (parts[0][0] + parts[1][0]).toUpperCase();
+}
+
 function actionLogin_(data) {
-  const pin = data && data.pin !== undefined && data.pin !== null ? String(data.pin).trim() : '';
-  if (!pin) return { ok: false, message: 'PIN wajib diisi' };
-  const map = pinMap_();
-  const user = map[pin];
-  if (!user) return { ok: false, message: 'PIN salah' };
-  return {
-    ok: true,
-    user: {
-      name: user.name || '',
-      role: user.role || '',
-      email: user.email || '',
-      initials: user.initials || '',
-    },
-  };
+  const name = data && data.name !== undefined && data.name !== null ? String(data.name).trim() : '';
+  const pwd = data && data.password !== undefined && data.password !== null ? String(data.password) : '';
+  if (!name || !pwd) return { ok: false, message: 'Nama dan password wajib diisi' };
+  
+  const sh = sheet_('DutyOfficers', DUTY_HEADERS);
+  if (!sh) return { ok: false, message: 'SPREADSHEET_ID belum dikonfigurasi' };
+  
+  const rows = readRows_(sh, DUTY_HEADERS);
+  const targetName = name.toLowerCase();
+  let user = null;
+  
+  for (let i = 0; i < rows.length; i++) {
+    const r = rows[i];
+    if (String(r.Nama || '').trim().toLowerCase() === targetName) {
+      if (String(r.Password) === hashPassword_(pwd)) {
+        user = {
+          id: String(r.id),
+          name: String(r.Nama),
+          role: String(r.Role),
+          initials: getInitials_(r.Nama)
+        };
+      }
+      break;
+    }
+  }
+  
+  if (!user) return { ok: false, message: 'Nama atau password salah' };
+  
+  return { ok: true, user: user };
 }
 
 function actionSaveRecord_(data) {
@@ -394,14 +392,6 @@ function actionListRecords_() {
   return { ok: true, records: rows.slice(0, 500) };
 }
 
-function seedEmployees_(sh) {
-  if (sh.getLastRow() < 2) {
-    DEFAULT_EMPLOYEES.forEach(function (row) {
-      sh.appendRow(row);
-    });
-  }
-}
-
 function ageFromDob_(dob, now) {
   const p = String(dob).split('-');
   const y = Number(p[0]);
@@ -436,7 +426,6 @@ function makeEmployeeId_(rows) {
 function actionListEmployees_() {
   const sh = sheet_('Employees', EMP_HEADERS);
   if (!sh) return { ok: false, message: 'SPREADSHEET_ID belum dikonfigurasi' };
-  seedEmployees_(sh);
   const rows = readEmpRows_(sh);
   const now = new Date();
     rows.forEach(function(r) {
@@ -473,7 +462,6 @@ function actionAddEmployee_(data) {
   if (age < 0 || age > 120) return { ok: false, message: 'Tanggal lahir tidak valid' };
   const sh = sheet_('Employees', EMP_HEADERS);
   if (!sh) return { ok: false, message: 'SPREADSHEET_ID belum dikonfigurasi' };
-  seedEmployees_(sh);
   const rows = readEmpRows_(sh);
   const id = makeEmployeeId_(rows);
   const emp = { id: id, cardUid: null, name: name, unit: unit, grup: grup, dob: dob, heightCm: height, age: age };
@@ -481,29 +469,20 @@ function actionAddEmployee_(data) {
   return { ok: true, employee: emp };
 }
 
-function seedDutyOfficers_(sh) {
-  if (sh.getLastRow() < 2) {
-    DEFAULT_DUTY_OFFICERS.forEach(function (row) {
-      sh.appendRow(row);
-    });
-  }
-}
-
-function actionListDutyOfficers_() {
+function actionCheckSetup_() {
   const sh = sheet_('DutyOfficers', DUTY_HEADERS);
   if (!sh) return { ok: false, message: 'SPREADSHEET_ID belum dikonfigurasi' };
-  seedDutyOfficers_(sh);
-  return { ok: true, officers: readRows_(sh, DUTY_HEADERS) };
+  const lastRow = sh.getLastRow();
+  return { ok: true, needsSetup: lastRow < 2 };
 }
 
-function actionSaveDutyOfficer_(data) {
-  if (!data || typeof data !== 'object') return { ok: false, message: 'Data tidak valid' };
-  const id = data.id === undefined || data.id === null ? '' : String(data.id).trim();
-  if (!id) return { ok: false, message: 'ID petugas wajib diisi' };
+function actionSetupAdmin_(data) {
+  const name = data && data.name !== undefined && data.name !== null ? String(data.name).trim() : '';
+  const pwd = data && data.password !== undefined && data.password !== null ? String(data.password) : '';
+  if (!name || pwd.length < 4) return { ok: false, message: 'Nama wajib diisi dan password minimal 4 karakter' };
   
   const sh = sheet_('DutyOfficers', DUTY_HEADERS);
   if (!sh) return { ok: false, message: 'SPREADSHEET_ID belum dikonfigurasi' };
-  seedDutyOfficers_(sh);
   
   const lock = LockService.getScriptLock();
   try {
@@ -511,35 +490,117 @@ function actionSaveDutyOfficer_(data) {
   } catch (e) {
     return { ok: false, message: 'Server sedang sibuk — coba lagi sebentar.' };
   }
+  
+  try {
+    if (sh.getLastRow() >= 2) return { ok: false, message: 'Setup sudah selesai sebelumnya' };
+    
+    const id = 'U-001';
+    const role = 'admin';
+    const hash = hashPassword_(pwd);
+    sh.appendRow([id, name, role, hash]);
+    
+    return { 
+      ok: true, 
+      user: { id: id, name: name, role: role, initials: getInitials_(name) } 
+    };
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+function actionListUsers_() {
+  const sh = sheet_('DutyOfficers', DUTY_HEADERS);
+  if (!sh) return { ok: false, message: 'SPREADSHEET_ID belum dikonfigurasi' };
+  const rows = readRows_(sh, DUTY_HEADERS);
+  const users = rows.map(function(r) {
+    return {
+      id: r.id,
+      name: r.Nama,
+      role: r.Role,
+      initials: getInitials_(r.Nama)
+    };
+  });
+  return { ok: true, users: users };
+}
+
+function actionAddUser_(data) {
+  const name = data && data.name !== undefined && data.name !== null ? String(data.name).trim() : '';
+  let roleRaw = data && data.role !== undefined && data.role !== null ? String(data.role).trim().toLowerCase() : '';
+  const pwd = data && data.password !== undefined && data.password !== null ? String(data.password) : '';
+  
+  if (!name) return { ok: false, message: 'Nama wajib diisi' };
+  if (roleRaw !== 'admin' && roleRaw !== 'perawat' && roleRaw !== 'dokter') {
+    return { ok: false, message: 'Role harus admin, perawat, atau dokter' };
+  }
+  if (pwd.length < 4) return { ok: false, message: 'Password minimal 4 karakter' };
+  
+  const sh = sheet_('DutyOfficers', DUTY_HEADERS);
+  if (!sh) return { ok: false, message: 'SPREADSHEET_ID belum dikonfigurasi' };
+  
+  const lock = LockService.getScriptLock();
+  try {
+    lock.waitLock(10000);
+  } catch (e) {
+    return { ok: false, message: 'Server sedang sibuk' };
+  }
+  
+  try {
+    const rows = readRows_(sh, DUTY_HEADERS);
+    const targetName = name.toLowerCase();
+    let maxId = 0;
+    
+    for (let i = 0; i < rows.length; i++) {
+      if (String(rows[i].Nama || '').trim().toLowerCase() === targetName) {
+        return { ok: false, message: 'Nama pengguna sudah digunakan' };
+      }
+      const m = /^U-(\d+)$/.exec(String(rows[i].id));
+      if (m && Number(m[1]) > maxId) maxId = Number(m[1]);
+    }
+    
+    const newId = 'U-' + String(maxId + 1).padStart(3, '0');
+    sh.appendRow([newId, name, roleRaw, hashPassword_(pwd)]);
+    
+    return { 
+      ok: true, 
+      user: { id: newId, name: name, role: roleRaw, initials: getInitials_(name) } 
+    };
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+function actionDeleteUser_(data) {
+  const id = data && data.id !== undefined && data.id !== null ? String(data.id).trim() : '';
+  if (!id) return { ok: false, message: 'ID pengguna wajib diisi' };
+  
+  const sh = sheet_('DutyOfficers', DUTY_HEADERS);
+  if (!sh) return { ok: false, message: 'SPREADSHEET_ID belum dikonfigurasi' };
+  
+  const lock = LockService.getScriptLock();
+  try {
+    lock.waitLock(10000);
+  } catch (e) {
+    return { ok: false, message: 'Server sedang sibuk' };
+  }
+  
   try {
     const rows = readRows_(sh, DUTY_HEADERS);
     let rowIndex = -1;
-    let officer = null;
     for (let i = 0; i < rows.length; i++) {
       if (String(rows[i].id) === id) {
-        rowIndex = i + 2; // Data mulai di baris 2
-        officer = rows[i];
+        rowIndex = i + 2;
         break;
       }
     }
-    if (rowIndex === -1) return { ok: false, message: 'Petugas tidak ditemukan' };
     
-    let newName = data.name === undefined || data.name === null ? '' : String(data.name).trim();
-    let newRole = data.role === undefined || data.role === null ? '' : String(data.role).trim();
+    if (rowIndex === -1) return { ok: false, message: 'Pengguna tidak ditemukan' };
     
-    if (!newName) newName = String(officer.defaultName || '');
-    if (!newRole) newRole = String(officer.defaultRole || '');
+    if (rows.length <= 1) {
+      return { ok: false, message: 'Tidak dapat menghapus satu-satunya pengguna di sistem' };
+    }
     
-    if (newName.length > 80) return { ok: false, message: 'Nama terlalu panjang (maks 80 karakter)' };
-    if (newRole !== 'Dokter' && newRole !== 'Perawat') return { ok: false, message: 'Role harus Dokter atau Perawat' };
-    
-    officer.name = newName;
-    officer.role = newRole;
-    
-    sh.getRange(rowIndex, 2).setValue(newName);
-    sh.getRange(rowIndex, 3).setValue(newRole);
-    
-    return { ok: true, officer: officer };
+    sh.deleteRow(rowIndex);
+    return { ok: true };
   } finally {
     lock.releaseLock();
   }
@@ -670,8 +731,11 @@ function doPost(e) {
     else if (action === 'listEmployees') res = actionListEmployees_();
     else if (action === 'addEmployee') res = actionAddEmployee_(data);
     else if (action === 'stats') res = actionStats_();
-    else if (action === 'listDutyOfficers') res = actionListDutyOfficers_();
-    else if (action === 'saveDutyOfficer') res = actionSaveDutyOfficer_(data);
+    else if (action === 'listUsers') res = actionListUsers_();
+    else if (action === 'addUser') res = actionAddUser_(data);
+    else if (action === 'deleteUser') res = actionDeleteUser_(data);
+    else if (action === 'checkSetup') res = actionCheckSetup_();
+    else if (action === 'setupAdmin') res = actionSetupAdmin_(data);
     else if (action === 'saveEmployeeCard') res = actionSaveEmployeeCard_(data);
     else res = { ok: false, message: 'Action tidak dikenal: ' + action };
     return jsonResponse_(res);
